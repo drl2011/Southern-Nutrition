@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Southern Nutrition | Loaded Teas & Iced Coffee</title>
+  <meta name="description" content="Loaded teas and iced coffee made fresh for pickup or local delivery." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="Southern Nutrition home">
+      <span class="brand-mark">SN</span>
+      <span><strong>Southern Nutrition</strong><small>Loaded Teas • Iced Coffee • Delivery</small></span>
+    </a>
+    <nav>
+      <a href="#menu">Menu</a><a href="#delivery">Delivery</a><a href="#rewards">Rewards</a>
+      <button class="cart-btn" id="cartBtn">Cart <span id="cartCount">0</span></button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">Weekend pickup + local delivery</span>
+        <h1>Big flavor.<br><span>Delivered.</span></h1>
+        <p>Loaded teas, refreshing energy drinks, and iced coffee made fresh to order. Starting at $12.</p>
+        <div class="hero-actions"><a class="btn primary" href="#menu">Order now</a><a class="btn ghost" href="#delivery">How delivery works</a></div>
+        <div class="trust-row"><span>⚡ Made fresh</span><span>🚗 Local delivery</span><span>⭐ Buy 9, get 10th free</span></div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="cup tea"><span>BOOST<br>ENERGY<br>FOCUS</span></div>
+        <div class="cup coffee"><span>GOOD<br>COFFEE<br>GOOD VIBES</span></div>
+        <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
+      </div>
+    </section>
+
+    <section class="announcement"><strong>Southern Rewards:</strong> Buy 9 paid standard drinks and get your 10th standard drink free. <a href="#rewards">Learn more →</a></section>
+
+    <section class="section" id="menu">
+      <div class="section-heading">
+        <div><span class="eyebrow">Freshly made</span><h2>Choose your drink</h2></div>
+        <div class="filters" role="group" aria-label="Menu filters">
+          <button class="filter active" data-filter="all">All</button><button class="filter" data-filter="tea">Loaded Teas</button><button class="filter" data-filter="coffee">Iced Coffee</button>
+        </div>
+      </div>
+      <div class="menu-grid" id="menuGrid"></div>
+    </section>
+
+    <section class="split section" id="delivery">
+      <div class="panel dark">
+        <span class="eyebrow">Delivery without the hassle</span><h2>We bring the drinks to you.</h2>
+        <p>Choose pickup or delivery at checkout. Workplace and group orders are welcome. Delivery minimum and service area can be adjusted as the business grows.</p>
+        <ul class="checklist"><li>Schedule pickup or delivery</li><li>Order for yourself or a whole workplace</li><li>Pay securely online with Square</li><li>Build rewards on repeat orders</li></ul>
+      </div>
+      <div class="panel light"><span class="eyebrow">Built for group orders</span><h3>Office order? Make one stop count.</h3><p>Put multiple drinks under one delivery and make workplace delivery fast.</p><div class="mini-card"><strong>Example</strong><span>12 drinks × $12</span><b>$144 one-stop order</b></div></div>
+    </section>
+
+    <section class="rewards section" id="rewards">
+      <div><span class="eyebrow">Southern Rewards</span><h2>Buy 9. Your 10th standard drink is on us.</h2><p>The launch site stores a rewards profile locally. Once your Square Loyalty program is created, this section can be connected to Square so rewards follow the customer's phone number.</p></div>
+      <form class="rewards-card" id="rewardsForm"><label>Name<input id="rewardName" required placeholder="Your name" /></label><label>Phone or email<input id="rewardContact" required placeholder="you@example.com" /></label><button class="btn primary" type="submit">Join rewards</button><p id="rewardStatus" class="form-note"></p></form>
+    </section>
+
+    <section class="section faq"><span class="eyebrow">Good to know</span><h2>Frequently asked</h2><details><summary>When do you deliver?</summary><p>Launch schedule is set for weekends. Exact hours and delivery zones can be added before launch.</p></details><details><summary>Can I place a group order?</summary><p>Yes. Add multiple drinks to one cart and use one workplace or delivery address.</p></details><details><summary>How does the free drink work?</summary><p>Every paid standard drink earns one reward credit. After nine paid drinks, the next standard drink is free.</p></details></section>
+  </main>
+
+  <footer><div class="brand footer-brand"><span class="brand-mark">SN</span><span><strong>Southern Nutrition</strong><small>GetSouthernNutrition.com</small></span></div><p>© <span id="year"></span> Southern Nutrition. All rights reserved.</p></footer>
+
+  <aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
+    <div class="cart-head"><h2>Your order</h2><button id="closeCart" aria-label="Close cart">×</button></div>
+    <div id="cartItems" class="cart-items"></div>
+    <div class="cart-summary">
+      <div><span>Subtotal</span><strong id="cartSubtotal">$0.00</strong></div>
+      <label>Fulfillment<select id="fulfillment"><option value="pickup">Pickup</option><option value="delivery">Delivery</option></select></label>
+      <label id="addressWrap" class="hidden">Delivery address<input id="deliveryAddress" placeholder="Street, city" /></label>
+      <label>Requested time<input id="orderTime" type="datetime-local" /></label>
+      <label>Notes<textarea id="orderNotes" placeholder="Flavor notes, workplace name, etc."></textarea></label>
+      <button class="btn primary full" id="placeOrder">Continue to secure checkout</button>
+      <p class="form-note">Payments are securely processed by Square.</p>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <dialog id="checkoutDialog" class="checkout-dialog">
+    <button class="dialog-close" id="checkoutClose" aria-label="Close checkout">×</button>
+    <span class="eyebrow">Secure checkout</span><h2>Finish your order</h2>
+    <div id="checkoutOrder" class="checkout-order"></div>
+    <div class="checkout-fields">
+      <label>Name<input id="customerName" autocomplete="name" placeholder="Your name" required></label>
+      <label>Phone<input id="customerPhone" autocomplete="tel" placeholder="(555) 555-5555" required></label>
+      <label>Email <span class="optional">(optional)</span><input id="customerEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+    </div>
+    <div id="squareStatus" class="square-status">Square Sandbox is not configured yet.</div>
+    <div id="card-container"></div>
+    <button class="btn primary full" id="payButton" disabled>Pay securely</button>
+    <p id="paymentMessage" class="form-note" role="status"></p>
+    <p class="form-note">Sandbox mode uses test payments only. It will not charge a real card until you intentionally switch the project to Square Production.</p>
+  </dialog>
+
+  <dialog id="successDialog">
+    <button class="dialog-close" id="successClose">×</button><h2>Order received 🎉</h2><p id="successMessage"></p><button class="btn primary full" id="successDone">Done</button>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
