@@ -19,6 +19,7 @@
     </a>
     <nav>
       <a href="#menu">Menu</a><a href="#delivery">Delivery</a><a href="#rewards">Rewards</a>
+      <button class="account-btn" id="accountBtn">Log in</button>
       <button class="cart-btn" id="cartBtn">Cart <span id="cartCount">0</span></button>
     </nav>
   </header>
@@ -39,7 +40,7 @@
       </div>
     </section>
 
-    <section class="announcement"><strong>Southern Rewards:</strong> Buy 9 paid standard drinks and get your 10th standard drink free. <a href="#rewards">Learn more →</a></section>
+    <section class="announcement"><strong>Southern Rewards:</strong> Buy 9 paid standard drinks and get your 10th standard drink free. <a href="#rewards">See your progress →</a></section>
 
     <section class="section" id="menu">
       <div class="section-heading">
@@ -57,15 +58,32 @@
         <p>Choose pickup or delivery at checkout. Workplace and group orders are welcome. Delivery minimum and service area can be adjusted as the business grows.</p>
         <ul class="checklist"><li>Schedule pickup or delivery</li><li>Order for yourself or a whole workplace</li><li>Pay securely online with Square</li><li>Build rewards on repeat orders</li></ul>
       </div>
-      <div class="panel light"><span class="eyebrow">Built for group orders</span><h3>Office order? Make one stop count.</h3><p>Put multiple drinks under one delivery and make workplace delivery fast.</p><div class="mini-card"><strong>Example</strong><span>12 drinks × $12</span><b>$144 one-stop order</b></div></div>
+      <div class="panel light"><span class="eyebrow">Built for group orders</span><h3>Office order? Make one stop count.</h3><p>Put multiple drinks under one delivery and make workplace delivery fast.</p><div class="mini-card"><strong>10+ Drink Savings</strong><span>Order 10 or more drinks</span><b>Save $1 on every drink</b></div></div>
     </section>
 
     <section class="rewards section" id="rewards">
-      <div><span class="eyebrow">Southern Rewards</span><h2>Buy 9. Your 10th standard drink is on us.</h2><p>The launch site stores a rewards profile locally. Once your Square Loyalty program is created, this section can be connected to Square so rewards follow the customer's phone number.</p></div>
-      <form class="rewards-card" id="rewardsForm"><label>Name<input id="rewardName" required placeholder="Your name" /></label><label>Phone or email<input id="rewardContact" required placeholder="you@example.com" /></label><button class="btn primary" type="submit">Join rewards</button><p id="rewardStatus" class="form-note"></p></form>
+      <div>
+        <span class="eyebrow">Southern Rewards</span><h2>Buy 9. Your 10th standard drink is on us.</h2>
+        <p>Join with your phone number, then sign in anytime to see your progress and reorder favorites.</p>
+        <div class="reward-progress" id="rewardProgress" aria-label="Rewards progress"></div>
+        <p class="reward-caption" id="rewardCaption">Join rewards to start earning.</p>
+      </div>
+      <div class="rewards-card" id="rewardCard">
+        <div id="rewardLoggedOut">
+          <h3>Join Southern Rewards</h3>
+          <p class="form-note">Create an account now. Your first paid standard drink starts your progress.</p>
+          <button class="btn primary full" id="joinRewardsBtn">Join rewards</button>
+          <button class="text-btn" id="rewardLoginBtn">Already a member? Log in</button>
+        </div>
+        <div id="rewardLoggedIn" class="hidden">
+          <span class="eyebrow">Welcome back</span><h3 id="rewardHello">Your rewards</h3>
+          <p id="rewardAccountContact" class="form-note"></p>
+          <button class="btn ghost full" id="accountDetailsBtn">View account</button>
+        </div>
+      </div>
     </section>
 
-    <section class="section faq"><span class="eyebrow">Good to know</span><h2>Frequently asked</h2><details><summary>When do you deliver?</summary><p>Launch schedule is set for weekends. Exact hours and delivery zones can be added before launch.</p></details><details><summary>Can I place a group order?</summary><p>Yes. Add multiple drinks to one cart and use one workplace or delivery address.</p></details><details><summary>How does the free drink work?</summary><p>Every paid standard drink earns one reward credit. After nine paid drinks, the next standard drink is free.</p></details></section>
+    <section class="section faq"><span class="eyebrow">Good to know</span><h2>Frequently asked</h2><details><summary>When do you deliver?</summary><p>Launch schedule is set for weekends. Exact hours and delivery zones can be added before launch.</p></details><details><summary>Can I place a group order?</summary><p>Yes. Add multiple drinks to one cart and use one workplace or delivery address. Orders of 10 or more drinks automatically get $1 off every drink; add-ons remain regular price.</p></details><details><summary>How does the free drink work?</summary><p>Every paid standard drink earns one reward credit. After nine paid drinks, the next standard drink is free.</p></details><details><summary>How much caffeine is in a loaded tea?</summary><p>Caffeine varies by recipe and add-ons. Loaded teas contain caffeine. Selecting Extra Liftoff adds additional caffeine; check the product labeling and ask us if you need exact amounts for a specific drink.</p></details></section>
   </main>
 
   <footer><div class="brand footer-brand"><span class="brand-mark">SN</span><span><strong>Southern Nutrition</strong><small>GetSouthernNutrition.com</small></span></div><p>© <span id="year"></span> Southern Nutrition. All rights reserved.</p></footer>
@@ -74,7 +92,7 @@
     <div class="cart-head"><h2>Your order</h2><button id="closeCart" aria-label="Close cart">×</button></div>
     <div id="cartItems" class="cart-items"></div>
     <div class="cart-summary">
-      <div><span>Subtotal</span><strong id="cartSubtotal">$0.00</strong></div>
+      <div id="groupDiscountNotice" class="group-discount-notice"><strong>Office & Group Savings</strong><span>Add 10 drinks to save $1 on every drink.</span></div><div><span>Subtotal</span><strong id="cartSubtotal">$0.00</strong></div>
       <label>Fulfillment<select id="fulfillment"><option value="pickup">Pickup</option><option value="delivery">Delivery</option></select></label>
       <label id="addressWrap" class="hidden">Delivery address<input id="deliveryAddress" placeholder="Street, city" /></label>
       <label>Requested time<input id="orderTime" type="datetime-local" /></label>
@@ -85,10 +103,60 @@
   </aside>
   <div class="scrim" id="scrim"></div>
 
+  <dialog id="customizeDialog" class="customize-dialog">
+    <button class="dialog-close" id="customizeClose" aria-label="Close">×</button>
+    <span class="eyebrow" id="customizeType">Loaded Tea</span>
+    <h2 id="customizeName">Customize your drink</h2>
+    <p id="customizeDesc" class="dialog-intro"></p>
+    <div id="flavorBuilder" class="option-section">
+      <div class="option-heading"><div><h3>Choose flavors</h3><p id="flavorHelp">Choose up to 2 included flavors. Each additional flavor is +$1.</p></div><span id="flavorCharge" class="option-price">Included</span></div>
+      <div class="choice-grid" id="flavorChoices"></div>
+    </div>
+    <div class="option-section">
+      <div class="option-heading"><div><h3>Enhance your tea</h3><p>Add any of these to your drink.</p></div></div>
+      <div class="addon-list" id="addonChoices"></div>
+    </div>
+    <div class="caffeine-notice" id="caffeineNotice"><strong>⚡ Caffeine notice</strong><span>Loaded teas contain caffeine. Extra Liftoff adds additional caffeine.</span></div>
+    <div class="customize-footer"><div><span class="form-note">Drink total</span><strong id="customizeTotal">$12.00</strong></div><button class="btn primary" id="addCustomized">Add to order</button></div>
+  </dialog>
+
+  <dialog id="accountDialog" class="account-dialog">
+    <button class="dialog-close" id="accountClose" aria-label="Close">×</button>
+    <div id="accountAuthView">
+      <span class="eyebrow">Southern Rewards</span><h2 id="accountTitle">Log in</h2>
+      <div class="auth-tabs"><button class="auth-tab active" data-mode="login">Log in</button><button class="auth-tab" data-mode="signup">Create account</button></div>
+      <form id="accountForm">
+        <label id="nameField" class="hidden">First name<input id="accountName" autocomplete="given-name" placeholder="First name"></label>
+        <label>Phone number<input id="accountPhone" autocomplete="tel" inputmode="tel" placeholder="(555) 555-5555" required></label>
+        <label id="emailField" class="hidden">Email <span class="optional">(optional)</span><input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+        <label>Password<input id="accountPassword" type="password" autocomplete="current-password" minlength="4" placeholder="Password" required></label>
+        <button class="btn primary full" id="accountSubmit" type="submit">Log in</button>
+        <p class="form-note auth-note">Account login is in website-demo mode until the secure customer database is connected.</p>
+        <p id="accountMessage" class="form-note"></p>
+      </form>
+    </div>
+    <div id="accountProfileView" class="hidden">
+      <span class="eyebrow">My account</span><h2 id="profileName">Welcome</h2><p id="profileContact" class="form-note"></p>
+      <div class="profile-card"><strong>Southern Rewards</strong><div class="reward-progress compact" id="profileRewardProgress"></div><p id="profileRewardCaption"></p></div>
+      <div class="profile-card"><strong>Coming next</strong><p>Order history, saved delivery addresses, favorites, and one-tap reorder.</p></div>
+      <button class="btn ghost full" id="logoutBtn">Log out</button>
+    </div>
+  </dialog>
+
   <dialog id="checkoutDialog" class="checkout-dialog">
     <button class="dialog-close" id="checkoutClose" aria-label="Close checkout">×</button>
     <span class="eyebrow">Secure checkout</span><h2>Finish your order</h2>
     <div id="checkoutOrder" class="checkout-order"></div>
+    <div class="tip-box">
+      <div class="tip-heading"><div><strong>Add a tip</strong><span>100% optional — thank you for supporting us.</span></div></div>
+      <div class="tip-options">
+        <button type="button" class="tip-btn" data-percent="0">No tip</button>
+        <button type="button" class="tip-btn" data-percent="0.10">10%</button>
+        <button type="button" class="tip-btn" data-percent="0.15">15%</button>
+        <button type="button" class="tip-btn" data-percent="0.20">20%</button>
+      </div>
+      <label class="custom-tip-label">Custom tip $<input id="customTip" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+    </div>
     <div class="checkout-fields">
       <label>Name<input id="customerName" autocomplete="name" placeholder="Your name" required></label>
       <label>Phone<input id="customerPhone" autocomplete="tel" placeholder="(555) 555-5555" required></label>

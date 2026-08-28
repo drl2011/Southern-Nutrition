@@ -1,0 +1,29 @@
+SOUTHERN NUTRITION — WEBSITE UPDATE V2
+
+Added:
+- "Build Your Own Loaded Tea" as its own menu item.
+- Two flavors included in custom tea; additional flavors +$1 each.
+- All loaded teas now open a customization screen.
+- Tea add-ons:
+  * Fiber +$3.50
+  * Collagen +$3.50
+  * Aloe +$1.00
+  * Extra Liftoff +$3.50
+- Caffeine notice on loaded teas and stronger warning when Extra Liftoff is selected.
+- Customer account / login interface.
+- Southern Rewards 9-dot progress display.
+- Account profile view prepared for order history/favorites later.
+- Existing delivery, office/group order, cart and overall layout retained.
+
+IMPORTANT:
+The account/login system in this version is a FRONT-END DEMO stored in the customer's browser. It is intentionally labeled as demo mode. Do not use it as the permanent live customer account system. Before launch, connect the login/rewards UI to a secure backend/customer database.
+
+Square checkout remains dependent on your secure /api/config and /api/payment backend being configured.
+
+
+V3 additions:
+- 10+ drinks automatically receive $1 off every drink (base drink discount; add-ons remain full price).
+- Cart shows progress toward group discount and total savings once unlocked.
+- Checkout includes optional No Tip / 10% / 15% / 20% / custom-dollar tipping.
+- Checkout total includes the selected tip.
+- Square backend calculation updated to validate custom tea flavors/add-ons, apply group discount server-side, and include the tip securely.
