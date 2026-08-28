@@ -22,3 +22,7 @@ V10
 - Replaced the circular Southern Nutrition header artwork with a wide lake/porch background.
 - Added responsive Southern / NUTRITION text directly in the website banner.
 - Mobile banner is shorter and centered, with no circular SN emblem.
+
+V11
+- Removed the decorative lake/logo photo banner completely.
+- Kept the compact text Southern Nutrition header/navigation.

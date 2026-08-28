@@ -65,3 +65,44 @@
 .mobile-cart-bar strong{color:#ffd568}
 @media(max-width:980px){.brand-banner-scene{height:220px}.menu-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:580px){.brand-banner{padding:8px}.brand-banner-scene{width:100%;height:145px;border-radius:14px;background-position:center 46%}.brand-banner-title{padding:8px 14px}.brand-banner-southern{font-size:43px;letter-spacing:-1px}.brand-banner-nutrition{font-size:17px;letter-spacing:.18em;margin-top:8px}.drink-art.photo,.drink-art.custom-art{height:240px}.mobile-cart-bar{display:flex}.site-header{top:0}}
+
+/* V11: removed decorative top logo/photo banner */
+.brand-banner{display:none!important}
+
+/* V12: mobile cart/checkout scrolling fix */
+@media(max-width:760px){
+  .cart-drawer{
+    overflow-y:auto;
+    overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    display:block;
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  }
+  .cart-head{
+    position:sticky;
+    top:0;
+    z-index:2;
+    background:#fff;
+  }
+  .cart-items{
+    overflow:visible;
+    flex:none;
+    padding-bottom:8px;
+  }
+  .cart-summary{
+    overflow:visible;
+    padding-bottom:calc(34px + env(safe-area-inset-bottom));
+  }
+  .cart-summary .btn.full{
+    margin-top:4px;
+    margin-bottom:8px;
+  }
+  .checkout-dialog{
+    max-height:calc(100dvh - 20px);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    padding-bottom:calc(28px + env(safe-area-inset-bottom));
+  }
+}
