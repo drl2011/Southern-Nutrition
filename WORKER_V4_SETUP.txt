@@ -1,0 +1,31 @@
+SOUTHERN NUTRITION - CLOUDFLARE WORKER V4
+
+This version converts the site from a static-assets-only Worker to a real Cloudflare Worker + static assets.
+That allows Variables and Secrets and provides /api/config and /api/payment for Square Sandbox.
+
+UPLOAD/REPLACE THESE FILES IN THE ROOT OF THE SAME GITHUB REPOSITORY:
+- index.html
+- styles.css
+- app.js
+- worker.js   <-- NEW and important
+- wrangler.jsonc <-- REPLACE existing config with this one
+
+The old functions/ folder is no longer used and can be deleted from GitHub.
+
+After GitHub commit and successful Cloudflare deployment:
+Cloudflare > Southern Nutrition Worker > Settings > Variables and Secrets
+
+Add normal variables:
+SQUARE_ENVIRONMENT = sandbox
+SQUARE_LOCATION_ID = your Sandbox Location ID
+SQUARE_APPLICATION_ID = your Sandbox Application ID
+
+Add as SECRET:
+SQUARE_ACCESS_TOKEN = your Sandbox Access Token
+
+Never put SQUARE_ACCESS_TOKEN in GitHub or browser JavaScript.
+
+Then visit https://getsouthernnutrition.com/api/config
+It should return JSON showing configured:true once the first 3 values exist.
+
+The site will then initialize Square Sandbox card entry. Payments remain TEST ONLY while SQUARE_ENVIRONMENT=sandbox.
