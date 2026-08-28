@@ -120,3 +120,34 @@
     scroll-margin-bottom:180px;
   }
 }
+
+/* V14: cart drawer scrolls correctly on iPad and desktop too */
+.cart-drawer{
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  height:100dvh;
+  max-height:100dvh;
+}
+.cart-head{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#fff;
+}
+.cart-items{
+  overflow:visible;
+  flex:none;
+  padding-bottom:8px;
+}
+.cart-summary{
+  overflow:visible;
+  padding-bottom:calc(34px + env(safe-area-inset-bottom));
+}
+.cart-summary input,
+.cart-summary select,
+.cart-summary textarea{
+  scroll-margin-top:90px;
+  scroll-margin-bottom:140px;
+}

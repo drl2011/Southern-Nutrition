@@ -28,3 +28,9 @@ V11
 - Kept the compact text Southern Nutrition header/navigation.
 
 V13: Fixed mobile address autofill/focus scrolling so the active delivery field stays visible above the keyboard.
+
+V14
+- Fixed cart/delivery form scrolling on iPad and desktop widths, not only phones.
+- Entire cart drawer now scrolls at every screen size.
+- Cart header stays visible while scrolling.
+- Delivery fields get safe scroll margins for iPad on-screen keyboards/autofill.
