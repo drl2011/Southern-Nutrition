@@ -16,3 +16,9 @@ Southern Nutrition V8
 - Password minimum is now 8 characters.
 - Bumped cart storage key to V8 and safely migrates valid old cart items.
 - Added the D1 binding to wrangler.jsonc so GitHub/Cloudflare deployments keep the DB connection.
+
+
+V10
+- Replaced the circular Southern Nutrition header artwork with a wide lake/porch background.
+- Added responsive Southern / NUTRITION text directly in the website banner.
+- Mobile banner is shorter and centered, with no circular SN emblem.
