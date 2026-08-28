@@ -1,18 +1,12 @@
 const MENU = {
-  'build-your-own': { name: 'Build Your Own Loaded Tea', cents: 1200, tea: true },
-  'strawberry-watermelon': { name: 'Strawberry Watermelon', cents: 1200, tea: true },
-  'blue-razz': { name: 'Blue Razz', cents: 1200, tea: true },
-  'peach-ring': { name: 'Peach Ring', cents: 1300, tea: true },
-  'tropical-punch': { name: 'Tropical Punch', cents: 1300, tea: true },
-  'sunset': { name: 'Southern Sunset', cents: 1400, tea: true },
-  'pink-starburst': { name: 'Pink Candy', cents: 1400, tea: true },
-  'vanilla-iced': { name: 'Vanilla Cream Iced Coffee', cents: 1200 },
-  'caramel': { name: 'Salted Caramel Iced Coffee', cents: 1300 },
-  'mocha': { name: 'Mocha Dream', cents: 1400 },
-  'protein-coffee': { name: 'Protein Iced Coffee', cents: 1500 }
+  'build-your-own': { name: 'Build Your Own Loaded Tea', tea: true },
+  'hot-mess': { name: 'Hot Mess', tea: true },
+  'purple-paradise': { name: 'Purple Paradise', tea: true },
+  'peach-perfect': { name: 'Peach Perfect', tea: true },
+  'blueberry-bliss': { name: 'Blueberry Bliss', tea: true }
 };
 const ADDONS = { fiber:350, collagen:350, aloe:100, liftoff:350 };
-const ALLOWED_FLAVORS = new Set(['Strawberry','Watermelon','Cherry','Piña Colada','Margarita','Blackberry','Melon','Rainbow Candy','Mango','Pineapple','Peach','Raspberry','Orange','Lemon-Lime','Blue Raspberry']);
+const ALLOWED_FLAVORS = new Set(['Strawberry','Watermelon','Tropical Fruit','Grape','Peach','Pineapple','Blueberry','Lemon','Lavender','Cherry','Piña Colada','Margarita','Blackberry','Melon','Rainbow Candy','Mango','Raspberry','Orange','Lemon-Lime','Blue Raspberry']);
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 function calculateOrder(cart, requestedTipCents){
   if(!Array.isArray(cart)||!cart.length) throw new Error('Your cart is empty.');
@@ -20,7 +14,7 @@ function calculateOrder(cart, requestedTipCents){
   for(const line of cart){
     const product=MENU[line.id],qty=Number(line.qty);
     if(!product||!Number.isInteger(qty)||qty<1||qty>50) throw new Error('The cart contains an invalid item.');
-    let unit=product.cents; const details=[];
+    const size=line.size==='jumbo'?'jumbo':'regular'; let unit=size==='jumbo'?1200:1000; const details=[size==='jumbo'?'Jumbo 40 oz':'Regular 32 oz'];
     if(product.tea){
       const flavors=Array.isArray(line.flavors)?line.flavors.filter(f=>ALLOWED_FLAVORS.has(f)):[];
       if(line.id==='build-your-own'&&!flavors.length) throw new Error('Choose at least one flavor for the custom tea.');
@@ -44,12 +38,12 @@ async function payment(request, env){
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
     const body=await request.json(); if(!body.sourceId) return json({error:'Missing Square payment token.'},400);
     const order=calculateOrder(body.cart,body.tipCents);
-    const fulfillment=body.fulfillment==='delivery'?'DELIVERY':'PICKUP';
+    const fulfillment='DELIVERY';
     const customerName=String(body.customer?.name||'').trim().slice(0,100), customerPhone=String(body.customer?.phone||'').trim().slice(0,30);
     if(!customerName||!customerPhone) return json({error:'Name and phone are required.'},400);
-    if(fulfillment==='DELIVERY'&&!String(body.deliveryAddress||'').trim()) return json({error:'Delivery address is required.'},400);
+    const addr=body.deliveryAddress||{}; const street=String(addr.street||'').trim().slice(0,120), city=String(addr.city||'').trim().slice(0,80), state=String(addr.state||'').trim().slice(0,20), zip=String(addr.zip||'').trim().slice(0,20); if(!street||!city||!state||!zip) return json({error:'Complete delivery address is required.'},400); const addressText=[String(addr.workplace||'').trim().slice(0,100),street,String(addr.unit||'').trim().slice(0,50),`${city}, ${state} ${zip}`].filter(Boolean).join(', ');
     const endpoint=env.SQUARE_ENVIRONMENT==='production'?'https://connect.squareup.com/v2/payments':'https://connect.squareupsandbox.com/v2/payments';
-    const notes=[`Southern Nutrition - ${fulfillment}`,order.items.join(', '),order.discount?`Group discount: -$${(order.discount/100).toFixed(2)}`:'',order.tipCents?`Tip: $${(order.tipCents/100).toFixed(2)}`:'No tip',body.requestedTime?`Requested: ${String(body.requestedTime).slice(0,40)}`:'',fulfillment==='DELIVERY'?`Address: ${String(body.deliveryAddress).slice(0,180)}`:'',body.notes?`Notes: ${String(body.notes).slice(0,180)}`:'',`Customer: ${customerName} / ${customerPhone}`].filter(Boolean);
+    const notes=[`Southern Nutrition - ${fulfillment}`,order.items.join(', '),order.discount?`Group discount: -$${(order.discount/100).toFixed(2)}`:'',order.tipCents?`Tip: $${(order.tipCents/100).toFixed(2)}`:'No tip',body.requestedTime?`Requested: ${String(body.requestedTime).slice(0,40)}`:'',`Address: ${addressText}`,addr.instructions?`Delivery instructions: ${String(addr.instructions).slice(0,180)}`:'',body.notes?`Notes: ${String(body.notes).slice(0,180)}`:'',`Customer: ${customerName} / ${customerPhone}`].filter(Boolean);
     const squareBody={source_id:body.sourceId,idempotency_key:crypto.randomUUID(),amount_money:{amount:order.amount,currency:'USD'},location_id:env.SQUARE_LOCATION_ID,autocomplete:true,note:notes.join(' | ').slice(0,500)};
     if(body.customer?.email) squareBody.buyer_email_address=String(body.customer.email).trim().slice(0,254);
     const response=await fetch(endpoint,{method:'POST',headers:{Authorization:`Bearer ${env.SQUARE_ACCESS_TOKEN}`,'Square-Version':'2026-08-19','Content-Type':'application/json'},body:JSON.stringify(squareBody)});

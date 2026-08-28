@@ -1,18 +1,12 @@
 const menu = [
-  {id:'build-your-own',name:'Build Your Own Loaded Tea',type:'tea',price:12,emoji:'✨',desc:'Create your own loaded tea. Pick 2 flavors included, then make it yours.',custom:true},
-  {id:'strawberry-watermelon',name:'Strawberry Watermelon',type:'tea',price:12,emoji:'🍓',desc:'Sweet strawberry with a crisp watermelon finish.',flavors:['Strawberry','Watermelon']},
-  {id:'blue-razz',name:'Blue Razz',type:'tea',price:12,emoji:'🫐',desc:'Bright blue raspberry flavor with a tart kick.',flavors:['Blue Raspberry']},
-  {id:'peach-ring',name:'Peach Ring',type:'tea',price:13,emoji:'🍑',desc:'Juicy peach flavor inspired by the classic candy.',flavors:['Peach','Rainbow Candy']},
-  {id:'tropical-punch',name:'Tropical Punch',type:'tea',price:13,emoji:'🌴',desc:'A fruity tropical blend built for hot afternoons.',flavors:['Pineapple','Mango']},
-  {id:'sunset',name:'Southern Sunset',type:'tea',price:14,emoji:'🌅',desc:'A layered house specialty with citrus and berry notes.',flavors:['Orange','Blackberry']},
-  {id:'pink-starburst',name:'Pink Candy',type:'tea',price:14,emoji:'💗',desc:'Sweet, bright, and candy-inspired.',flavors:['Strawberry','Rainbow Candy']},
-  {id:'vanilla-iced',name:'Vanilla Cream Iced Coffee',type:'coffee',price:12,emoji:'☕',desc:'Smooth iced coffee with creamy vanilla flavor.'},
-  {id:'caramel',name:'Salted Caramel Iced Coffee',type:'coffee',price:13,emoji:'🧋',desc:'Rich caramel flavor with a light salted finish.'},
-  {id:'mocha',name:'Mocha Dream',type:'coffee',price:14,emoji:'🍫',desc:'Chocolate-forward iced coffee for a richer treat.'},
-  {id:'protein-coffee',name:'Protein Iced Coffee',type:'coffee',price:15,emoji:'💪',desc:'A more filling iced coffee option with added protein.'}
+  {id:'build-your-own',name:'Build Your Own Loaded Tea',type:'tea',image:'',desc:'Create your own loaded tea. Pick 2 flavors included, then make it yours.',custom:true},
+  {id:'hot-mess',name:'Hot Mess',type:'tea',image:'assets/hot-mess.png',desc:'Strawberry • Watermelon • Chili Lime',flavors:['Strawberry','Watermelon']},
+  {id:'purple-paradise',name:'Purple Paradise',type:'tea',image:'assets/purple-paradise.png',desc:'Tropical Fruit • Grape',flavors:['Tropical Fruit','Grape']},
+  {id:'peach-perfect',name:'Peach Perfect',type:'tea',image:'assets/peach-perfect.png',desc:'Peach • Pineapple',flavors:['Peach','Pineapple']},
+  {id:'blueberry-bliss',name:'Blueberry Bliss',type:'tea',image:'assets/blueberry-bliss.png',desc:'Blueberry • Lemon • Lavender',flavors:['Blueberry','Lemon','Lavender']}
 ];
 
-const flavorOptions = ['Strawberry','Watermelon','Cherry','Piña Colada','Margarita','Blackberry','Melon','Rainbow Candy','Mango','Pineapple','Peach','Raspberry','Orange','Lemon-Lime','Blue Raspberry'];
+const flavorOptions = ['Strawberry','Watermelon','Tropical Fruit','Grape','Peach','Pineapple','Blueberry','Lemon','Lavender','Cherry','Piña Colada','Margarita','Blackberry','Melon','Rainbow Candy','Mango','Raspberry','Orange','Lemon-Lime','Blue Raspberry'];
 const addons = [
   {id:'fiber',name:'Add Fiber',price:3.50},
   {id:'collagen',name:'Add Collagen',price:3.50},
@@ -29,7 +23,8 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const money = n => `$${Number(n).toFixed(2)}`;
 
-function linePrice(ci){return ci.unitPrice ?? (menu.find(x=>x.id===ci.id)?.price || 0)}
+function baseSizePrice(size){return size==='jumbo'?12:10}
+function linePrice(ci){return ci.unitPrice ?? baseSizePrice(ci.size)}
 function drinkCount(){ return cart.reduce((s,ci)=>s+ci.qty,0); }
 function rawSubtotal(){ return cart.reduce((s,ci)=>s+linePrice(ci)*ci.qty,0); }
 function groupDiscount(){ return drinkCount()>=10 ? drinkCount() : 0; }
@@ -37,23 +32,24 @@ function subtotal(){ return Math.max(0, rawSubtotal()-groupDiscount()); }
 let selectedTipCents = 0;
 function tipAmount(){ return selectedTipCents/100; }
 function orderTotal(){ return subtotal()+tipAmount(); }
-function itemKey(ci){return `${ci.id}|${(ci.flavors||[]).join(',')}|${(ci.addons||[]).map(a=>a.id).sort().join(',')}`}
+function itemKey(ci){return `${ci.id}|${ci.size||'regular'}|${(ci.flavors||[]).join(',')}|${(ci.addons||[]).map(a=>a.id).sort().join(',')}`}
 
 function renderMenu(filter='all'){
   const items = filter==='all' ? menu : menu.filter(x=>x.type===filter);
-  $('#menuGrid').innerHTML = items.map(x=>`<article class="menu-card ${x.custom?'featured-card':''}"><div class="drink-art">${x.emoji}</div><div class="menu-body"><span class="eyebrow">${x.custom?'Make it yours':x.type==='tea'?'Loaded Tea':'Iced Coffee'}</span><h3>${x.name}</h3><p>${x.desc}</p>${x.type==='tea'?'<div class="mini-caffeine">⚡ Contains caffeine</div>':''}<div class="price-row"><span class="price">${x.custom?'From ':''}$${x.price}</span><button class="add-btn" data-id="${x.id}">${x.type==='tea'?'Customize':'Add to order'}</button></div></div></article>`).join('');
+  $('#menuGrid').innerHTML = items.map(x=>`<article class="menu-card ${x.custom?'featured-card':''}">${x.image?`<div class="drink-art photo"><img src="${x.image}" alt="${x.name}"></div>`:`<div class="drink-art custom-art"><span>✨</span><strong>Build Your Own</strong></div>`}<div class="menu-body"><span class="eyebrow">${x.custom?'Make it yours':'Loaded Tea'}</span><h3>${x.name}</h3><p>${x.desc}</p><div class="size-preview"><span><small>Regular</small><b>32 oz • $10</b></span><span><small>Jumbo</small><b>40 oz • $12</b></span></div><div class="mini-caffeine">⚡ Contains caffeine</div><div class="price-row"><span class="price">From $10</span><button class="add-btn" data-id="${x.id}">Customize</button></div></div></article>`).join('');
   $$('.add-btn').forEach(b=>b.onclick=()=>startAdd(b.dataset.id));
 }
 
 function startAdd(id){
   const item=menu.find(x=>x.id===id); if(!item)return;
   if(item.type==='coffee'){ addSimpleToCart(item); return; }
-  customizing={id:item.id,basePrice:item.price,flavors:[...(item.flavors||[])],addons:[]};
+  customizing={id:item.id,size:'regular',flavors:[...(item.flavors||[])],addons:[]};
   $('#customizeType').textContent=item.custom?'Build Your Own':'Loaded Tea';
   $('#customizeName').textContent=item.name;
   $('#customizeDesc').textContent=item.custom?'Choose any 2 flavors included. Add more flavors for $1 each.':item.desc;
   $('#flavorHelp').textContent=item.custom?'Choose up to 2 included flavors. Each additional flavor is +$1.':'Your recipe flavors are preselected. Add or change flavors; more than 2 total are +$1 each.';
   renderCustomizer();
+  $$('#sizeChoices .size-choice').forEach(b=>b.classList.toggle('active',b.dataset.size==='regular'));
   $('#customizeDialog').showModal();
 }
 
@@ -66,7 +62,7 @@ function renderCustomizer(){
   updateCustomizerPrice();
 }
 
-function currentCustomPrice(){const flavorExtras=Math.max(0,customizing.flavors.length-2);return customizing.basePrice+flavorExtras+customizing.addons.reduce((s,a)=>s+a.price,0)}
+function currentCustomPrice(){const flavorExtras=Math.max(0,customizing.flavors.length-2);return baseSizePrice(customizing.size)+flavorExtras+customizing.addons.reduce((s,a)=>s+a.price,0)}
 function updateCustomizerPrice(){
   const flavorExtras=Math.max(0,customizing.flavors.length-2);
   $('#flavorCharge').textContent=flavorExtras?`+${money(flavorExtras)}`:'2 included';
@@ -79,17 +75,19 @@ function updateCustomizerPrice(){
 function addCustomized(){
   const item=menu.find(x=>x.id===customizing.id);
   if(item.custom && customizing.flavors.length===0){alert('Choose at least one flavor for your custom tea.');return;}
-  const ci={id:item.id,qty:1,flavors:[...customizing.flavors],addons:customizing.addons.map(a=>({id:a.id,name:a.name,price:a.price})),unitPrice:currentCustomPrice()};
+  const ci={id:item.id,qty:1,size:customizing.size,flavors:[...customizing.flavors],addons:customizing.addons.map(a=>({id:a.id,name:a.name,price:a.price})),unitPrice:currentCustomPrice()};
   const key=itemKey(ci), found=cart.find(x=>itemKey(x)===key); if(found)found.qty++; else cart.push(ci);
-  saveCart(); $('#customizeDialog').close(); openCart();
+  saveCart(); $('#customizeDialog').close(); showAddedToast();
 }
-function addSimpleToCart(item){const ci={id:item.id,qty:1,flavors:[],addons:[],unitPrice:item.price};const found=cart.find(x=>itemKey(x)===itemKey(ci));if(found)found.qty++;else cart.push(ci);saveCart();openCart();}
+function addSimpleToCart(item){const ci={id:item.id,qty:1,size:'regular',flavors:[],addons:[],unitPrice:10};const found=cart.find(x=>itemKey(x)===itemKey(ci));if(found)found.qty++;else cart.push(ci);saveCart();showAddedToast();}
 
 function saveCart(){localStorage.setItem('sn_cart_v2',JSON.stringify(cart));renderCart();}
-function cartDetails(ci){const parts=[];if(ci.flavors?.length)parts.push(ci.flavors.join(' + '));if(ci.addons?.length)parts.push(ci.addons.map(a=>a.name.replace('Add ','')).join(', '));return parts.join(' • ')}
+function cartDetails(ci){const parts=[ci.size==='jumbo'?'Jumbo 40 oz':'Regular 32 oz'];if(ci.flavors?.length)parts.push(ci.flavors.join(' + '));if(ci.addons?.length)parts.push(ci.addons.map(a=>a.name.replace('Add ','')).join(', '));return parts.join(' • ')}
 function renderCart(){
   const count=drinkCount();
   $('#cartCount').textContent=count;
+  const mobileBar=$('#mobileCartBar');
+  if(mobileBar){mobileBar.classList.toggle('hidden',count===0);$('#mobileCartText').textContent=`${count} drink${count===1?'':'s'} • ${money(subtotal())}`;}
   if(!cart.length){$('#cartItems').innerHTML='<p class="form-note">Your cart is empty.</p>';$('#cartSubtotal').textContent='$0.00';$('#groupDiscountNotice').innerHTML='<strong>Office & Group Savings</strong><span>Add 10 drinks to save $1 on every drink.</span>';return;}
   $('#cartItems').innerHTML=cart.map((ci,idx)=>{const m=menu.find(x=>x.id===ci.id);return `<div class="cart-item"><div><strong>${m.name}</strong>${cartDetails(ci)?`<div class="cart-detail">${cartDetails(ci)}</div>`:''}<div class="form-note">${money(linePrice(ci))} each</div></div><div class="qty"><button data-act="minus" data-index="${idx}">−</button><span>${ci.qty}</span><button data-act="plus" data-index="${idx}">+</button></div></div>`}).join('');
   $$('#cartItems button').forEach(b=>b.onclick=()=>changeQty(Number(b.dataset.index),b.dataset.act));
@@ -102,6 +100,7 @@ function renderCart(){
 function changeQty(index,act){cart[index].qty+=act==='plus'?1:-1;cart=cart.filter(i=>i.qty>0);saveCart();}
 function openCart(){$('#cartDrawer').classList.add('open');$('#scrim').classList.add('show');$('#cartDrawer').setAttribute('aria-hidden','false');}
 function closeCart(){$('#cartDrawer').classList.remove('open');$('#scrim').classList.remove('show');$('#cartDrawer').setAttribute('aria-hidden','true');}
+let toastTimer; function showAddedToast(){const t=$('#addedToast');if(!t)return;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1800);}
 
 function getAccounts(){return JSON.parse(localStorage.getItem('sn_demo_accounts')||'{}')}
 function setAccounts(x){localStorage.setItem('sn_demo_accounts',JSON.stringify(x))}
@@ -154,13 +153,15 @@ function bindTipControls(){
 }
 
 $$('.filter').forEach(b=>b.onclick=()=>{$$('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderMenu(b.dataset.filter);});
-$('#cartBtn').onclick=openCart; $('#closeCart').onclick=closeCart; $('#scrim').onclick=closeCart; $('#fulfillment').onchange=e=>$('#addressWrap').classList.toggle('hidden',e.target.value!=='delivery');
+$('#cartBtn').onclick=openCart; $('#closeCart').onclick=closeCart; $('#scrim').onclick=closeCart;
 $('#customizeClose').onclick=()=>$('#customizeDialog').close();$('#addCustomized').onclick=addCustomized;
+$$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return;customizing.size=b.dataset.size;$$('#sizeChoices .size-choice').forEach(x=>x.classList.toggle('active',x===b));updateCustomizerPrice();});
+$('#mobileCartBar').onclick=openCart;
 $('#accountBtn').onclick=()=>openAccount();$('#joinRewardsBtn').onclick=()=>openAccount('signup');$('#rewardLoginBtn').onclick=()=>openAccount('login');$('#accountDetailsBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=()=>{setSession(null);$('#accountDialog').close();};
 
-$('#placeOrder').onclick=()=>{if(!cart.length)return alert('Add at least one drink first.');if($('#fulfillment').value==='delivery'&&!$('#deliveryAddress').value.trim())return alert('Enter a delivery address.');selectedTipCents=0;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();};
+$('#placeOrder').onclick=()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}selectedTipCents=0;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();};
 $('#checkoutClose').onclick=()=>$('#checkoutDialog').close();
-$('#payButton').onclick=async()=>{const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:$('#fulfillment').value,deliveryAddress:$('#deliveryAddress').value.trim(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Payment failed.');cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
+$('#payButton').onclick=async()=>{const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:{street:$('#deliveryStreet').value.trim(),unit:$('#deliveryUnit').value.trim(),city:$('#deliveryCity').value.trim(),state:$('#deliveryState').value.trim().toUpperCase(),zip:$('#deliveryZip').value.trim(),workplace:$('#workplaceName').value.trim(),instructions:$('#deliveryInstructions').value.trim()},requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Payment failed.');cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
 renderMenu();renderCart();renderAccountState();bindTipControls();initSquare();
