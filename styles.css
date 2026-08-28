@@ -106,3 +106,17 @@
     padding-bottom:calc(28px + env(safe-area-inset-bottom));
   }
 }
+
+/* V13: keep active delivery fields visible above mobile keyboards/autofill */
+@media(max-width:760px){
+  .cart-drawer{
+    height:100dvh;
+    max-height:100dvh;
+  }
+  .cart-summary input,
+  .cart-summary select,
+  .cart-summary textarea{
+    scroll-margin-top:90px;
+    scroll-margin-bottom:180px;
+  }
+}

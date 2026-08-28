@@ -194,3 +194,43 @@ $('#payButton').onclick=async()=>{const name=$('#customerName').value.trim(),pho
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
 renderMenu();renderCart();renderAccountState();bindTipControls();refreshSession();initSquare();
+
+// V13: Mobile autofill/keyboard focus correction inside the cart drawer.
+// Some mobile browsers scroll the next autofilled field underneath the keyboard.
+(() => {
+  const drawer = document.getElementById('cartDrawer');
+  if (!drawer) return;
+
+  const isCartField = (el) => el && drawer.contains(el) && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
+
+  const keepFieldVisible = (el) => {
+    if (!isCartField(el) || !drawer.classList.contains('open')) return;
+
+    // Let Safari/Chrome finish opening the keyboard and applying autofill first.
+    window.setTimeout(() => {
+      if (document.activeElement !== el) return;
+
+      const vv = window.visualViewport;
+      const viewportTop = vv ? vv.offsetTop : 0;
+      const viewportBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const topPad = 82;
+      const bottomPad = 34;
+      const rect = el.getBoundingClientRect();
+      const safeTop = viewportTop + topPad;
+      const safeBottom = viewportBottom - bottomPad;
+
+      if (rect.bottom > safeBottom) {
+        drawer.scrollBy({ top: rect.bottom - safeBottom + 10, behavior: 'smooth' });
+      } else if (rect.top < safeTop) {
+        drawer.scrollBy({ top: rect.top - safeTop - 10, behavior: 'smooth' });
+      }
+    }, 180);
+  };
+
+  drawer.addEventListener('focusin', (event) => keepFieldVisible(event.target));
+
+  // Autofill and keyboard opening can resize the visual viewport after focus.
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => keepFieldVisible(document.activeElement));
+  }
+})();

@@ -26,3 +26,5 @@ V10
 V11
 - Removed the decorative lake/logo photo banner completely.
 - Kept the compact text Southern Nutrition header/navigation.
+
+V13: Fixed mobile address autofill/focus scrolling so the active delivery field stays visible above the keyboard.
