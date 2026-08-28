@@ -1,3 +1,7 @@
+V9 updates:
+- Fixed refresh scroll creep by disabling browser scroll restoration for normal page loads.
+- Reduced the Southern Nutrition logo/banner size on mobile while keeping the full logo centered and visible.
+
 Southern Nutrition V8
 
 - Replaced demo/localStorage customer login with Cloudflare D1-backed accounts.

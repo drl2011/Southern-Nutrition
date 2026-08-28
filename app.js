@@ -1,3 +1,14 @@
+// Keep mobile refreshes from restoring/creeping to an old scroll position.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+const resetRefreshScroll = () => {
+  if (!location.hash) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+};
+resetRefreshScroll();
+window.addEventListener('load', () => {
+  resetRefreshScroll();
+  requestAnimationFrame(() => requestAnimationFrame(resetRefreshScroll));
+}, { once: true });
+
 const menu = [
   {id:'build-your-own',name:'Build Your Own Loaded Tea',type:'tea',image:'',desc:'Create your own loaded tea. Pick 2 flavors included, then make it yours.',custom:true},
   {id:'hot-mess',name:'Hot Mess',type:'tea',image:'assets/hot-mess.png',desc:'Strawberry • Watermelon • Chili Lime',flavors:['Strawberry','Watermelon']},
