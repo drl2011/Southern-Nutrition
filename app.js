@@ -14,7 +14,9 @@ const addons = [
   {id:'liftoff',name:'Add Extra Liftoff',price:3.50,caffeine:true}
 ];
 
-let cart = JSON.parse(localStorage.getItem('sn_cart_v2') || '[]');
+const CART_KEY='sn_cart_v8';
+function loadCart(){try{const raw=JSON.parse(localStorage.getItem(CART_KEY)||localStorage.getItem('sn_cart_v2')||'[]');return Array.isArray(raw)?raw.filter(ci=>menu.some(m=>m.id===ci.id)):[];}catch{return []}}
+let cart = loadCart();
 let squareCard = null;
 let squareEnvironment = 'sandbox';
 let customizing = null;
@@ -81,7 +83,7 @@ function addCustomized(){
 }
 function addSimpleToCart(item){const ci={id:item.id,qty:1,size:'regular',flavors:[],addons:[],unitPrice:10};const found=cart.find(x=>itemKey(x)===itemKey(ci));if(found)found.qty++;else cart.push(ci);saveCart();showAddedToast();}
 
-function saveCart(){localStorage.setItem('sn_cart_v2',JSON.stringify(cart));renderCart();}
+function saveCart(){localStorage.setItem(CART_KEY,JSON.stringify(cart));renderCart();}
 function cartDetails(ci){const parts=[ci.size==='jumbo'?'Jumbo 40 oz':'Regular 32 oz'];if(ci.flavors?.length)parts.push(ci.flavors.join(' + '));if(ci.addons?.length)parts.push(ci.addons.map(a=>a.name.replace('Add ','')).join(', '));return parts.join(' • ')}
 function renderCart(){
   const count=drinkCount();
@@ -102,28 +104,44 @@ function openCart(){$('#cartDrawer').classList.add('open');$('#scrim').classList
 function closeCart(){$('#cartDrawer').classList.remove('open');$('#scrim').classList.remove('show');$('#cartDrawer').setAttribute('aria-hidden','true');}
 let toastTimer; function showAddedToast(){const t=$('#addedToast');if(!t)return;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1800);}
 
-function getAccounts(){return JSON.parse(localStorage.getItem('sn_demo_accounts')||'{}')}
-function setAccounts(x){localStorage.setItem('sn_demo_accounts',JSON.stringify(x))}
-function getSession(){return JSON.parse(localStorage.getItem('sn_demo_session')||'null')}
-function setSession(x){x?localStorage.setItem('sn_demo_session',JSON.stringify(x)):localStorage.removeItem('sn_demo_session');renderAccountState()}
+let currentUser = null;
 function rewardDots(credits){const earned=Math.min(9,Math.max(0,credits||0));return Array.from({length:9},(_,i)=>`<span class="reward-dot ${i<earned?'filled':''}">${i<earned?'✓':''}</span>`).join('')}
 function renderRewardProgress(el,credits){el.innerHTML=rewardDots(credits)}
 function renderAccountState(){
-  const session=getSession(), accounts=getAccounts(), acct=session?accounts[session.phone]:null, credits=acct?.credits||0;
+  const acct=currentUser, credits=acct?.credits||0;
   $('#accountBtn').textContent=acct?`Hi, ${acct.name}`:'Log in';
   $('#rewardLoggedOut').classList.toggle('hidden',!!acct);$('#rewardLoggedIn').classList.toggle('hidden',!acct);
   renderRewardProgress($('#rewardProgress'),credits);
-  $('#rewardCaption').textContent=acct?(credits>=9?'Your next standard drink is FREE.':`${credits} of 9 paid drinks — ${9-credits} more until your free drink.`):'Join rewards to start earning.';
-  if(acct){$('#rewardHello').textContent=`Hi, ${acct.name}`;$('#rewardAccountContact').textContent=acct.phone;$('#profileName').textContent=`Hi, ${acct.name}`;$('#profileContact').textContent=[acct.phone,acct.email].filter(Boolean).join(' • ');renderRewardProgress($('#profileRewardProgress'),credits);$('#profileRewardCaption').textContent=credits>=9?'Your next standard drink is FREE.':`${credits}/9 toward your free drink.`;$('#customerName').value=acct.name;$('#customerPhone').value=acct.phone;$('#customerEmail').value=acct.email||'';}
+  $('#rewardCaption').textContent=acct?(acct.loyaltyEnabled?(credits>=9?'Your next standard drink is FREE.':`${credits} of 9 paid drinks — ${9-credits} more until your free drink.`):'Your account is connected. Square Loyalty sync is the next step.'):'Join rewards to start earning.';
+  if(acct){
+    $('#rewardHello').textContent=`Hi, ${acct.name}`;$('#rewardAccountContact').textContent=acct.phone;
+    $('#profileName').textContent=`Hi, ${acct.name}`;$('#profileContact').textContent=[acct.phone,acct.email].filter(Boolean).join(' • ');
+    renderRewardProgress($('#profileRewardProgress'),credits);
+    $('#profileRewardCaption').textContent=acct.loyaltyEnabled?(credits>=9?'Your next standard drink is FREE.':`${credits}/9 toward your free drink.`):(acct.squareLinked?'Square customer connected. Loyalty tracking will appear here when Square Loyalty is enabled.':'Account saved. We still need to link this profile to Square.');
+    $('#customerName').value=acct.name;$('#customerPhone').value=acct.phone;$('#customerEmail').value=acct.email||'';
+  }
+}
+async function refreshSession(){
+  try{const r=await fetch('/api/auth/me',{cache:'no-store',credentials:'same-origin'});const data=await r.json();currentUser=data.authenticated?data.user:null;}catch{currentUser=null;}renderAccountState();
 }
 function openAccount(mode='login'){
-  const session=getSession(), acct=session?getAccounts()[session.phone]:null;
-  if(acct){$('#accountAuthView').classList.add('hidden');$('#accountProfileView').classList.remove('hidden');renderAccountState();}
+  if(currentUser){$('#accountAuthView').classList.add('hidden');$('#accountProfileView').classList.remove('hidden');renderAccountState();}
   else{$('#accountAuthView').classList.remove('hidden');$('#accountProfileView').classList.add('hidden');setAuthMode(mode);}
   $('#accountDialog').showModal();
 }
-function setAuthMode(mode){authMode=mode;$$('.auth-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));const signup=mode==='signup';$('#nameField').classList.toggle('hidden',!signup);$('#emailField').classList.toggle('hidden',!signup);$('#accountTitle').textContent=signup?'Create your account':'Log in';$('#accountSubmit').textContent=signup?'Create account':'Log in';$('#accountPassword').autocomplete=signup?'new-password':'current-password';$('#accountMessage').textContent='';}
-$('#accountForm').onsubmit=e=>{e.preventDefault();const phone=$('#accountPhone').value.trim(),pw=$('#accountPassword').value,name=$('#accountName').value.trim(),email=$('#accountEmail').value.trim();const accounts=getAccounts();if(authMode==='signup'){if(!name){$('#accountMessage').textContent='Enter your first name.';return}if(accounts[phone]){$('#accountMessage').textContent='An account with that phone number already exists.';return}accounts[phone]={name,phone,email,password:pw,credits:0};setAccounts(accounts);setSession({phone});}else{const acct=accounts[phone];if(!acct||acct.password!==pw){$('#accountMessage').textContent='Phone number or password does not match.';return}setSession({phone});}$('#accountDialog').close();};
+function setAuthMode(mode){authMode=mode;$$('.auth-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));const signup=mode==='signup';$('#nameField').classList.toggle('hidden',!signup);$('#emailField').classList.toggle('hidden',!signup);$('#accountEmail').required=signup;$('#accountTitle').textContent=signup?'Create your account':'Log in';$('#accountSubmit').textContent=signup?'Create account':'Log in';$('#accountPassword').autocomplete=signup?'new-password':'current-password';$('#accountMessage').textContent='';}
+$('#accountForm').onsubmit=async e=>{
+  e.preventDefault(); const phone=$('#accountPhone').value.trim(),password=$('#accountPassword').value,name=$('#accountName').value.trim(),email=$('#accountEmail').value.trim();
+  if(authMode==='signup'&&password.length<8){$('#accountMessage').textContent='Password must be at least 8 characters.';return;}
+  const btn=$('#accountSubmit');btn.disabled=true;btn.textContent=authMode==='signup'?'Creating…':'Logging in…';$('#accountMessage').textContent='';
+  try{
+    const endpoint=authMode==='signup'?'/api/auth/signup':'/api/auth/login';
+    const payload=authMode==='signup'?{name,phone,email,password}:{phone,password};
+    const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)});const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Account request failed.'); currentUser=data.user; renderAccountState(); $('#accountDialog').close();
+  }catch(err){$('#accountMessage').textContent=err.message;}finally{btn.disabled=false;btn.textContent=authMode==='signup'?'Create account':'Log in';}
+};
+async function logout(){try{await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});}finally{currentUser=null;renderAccountState();$('#accountDialog').close();}}
 
 async function initSquare(){
   try {const r=await fetch('/api/config',{cache:'no-store'}); const cfg=await r.json();if(!cfg.configured){$('#squareStatus').textContent='Square Sandbox is ready in the site, but your Sandbox IDs still need to be added in Cloudflare.';return;}squareEnvironment=cfg.environment;if(cfg.environment==='production'&&location.hostname!=='localhost'){const old=[...document.scripts].find(s=>s.src.includes('squarecdn.com/v1/square.js'));if(old?.src.includes('sandbox.'))await loadScript('https://web.squarecdn.com/v1/square.js');}if(!window.Square)throw new Error('Square Web Payments SDK did not load.');const payments=window.Square.payments(cfg.applicationId,cfg.locationId);squareCard=await payments.card();await squareCard.attach('#card-container');$('#payButton').disabled=false;$('#squareStatus').textContent=cfg.environment==='production'?'Secure Square checkout':'Square Sandbox connected — test payments only';}catch(e){$('#squareStatus').textContent=`Square setup error: ${e.message}`;}
@@ -157,11 +175,11 @@ $('#cartBtn').onclick=openCart; $('#closeCart').onclick=closeCart; $('#scrim').o
 $('#customizeClose').onclick=()=>$('#customizeDialog').close();$('#addCustomized').onclick=addCustomized;
 $$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return;customizing.size=b.dataset.size;$$('#sizeChoices .size-choice').forEach(x=>x.classList.toggle('active',x===b));updateCustomizerPrice();});
 $('#mobileCartBar').onclick=openCart;
-$('#accountBtn').onclick=()=>openAccount();$('#joinRewardsBtn').onclick=()=>openAccount('signup');$('#rewardLoginBtn').onclick=()=>openAccount('login');$('#accountDetailsBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=()=>{setSession(null);$('#accountDialog').close();};
+$('#accountBtn').onclick=()=>openAccount();$('#joinRewardsBtn').onclick=()=>openAccount('signup');$('#rewardLoginBtn').onclick=()=>openAccount('login');$('#accountDetailsBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
 
 $('#placeOrder').onclick=()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}selectedTipCents=0;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();};
 $('#checkoutClose').onclick=()=>$('#checkoutDialog').close();
 $('#payButton').onclick=async()=>{const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:{street:$('#deliveryStreet').value.trim(),unit:$('#deliveryUnit').value.trim(),city:$('#deliveryCity').value.trim(),state:$('#deliveryState').value.trim().toUpperCase(),zip:$('#deliveryZip').value.trim(),workplace:$('#workplaceName').value.trim(),instructions:$('#deliveryInstructions').value.trim()},requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Payment failed.');cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
-renderMenu();renderCart();renderAccountState();bindTipControls();initSquare();
+renderMenu();renderCart();renderAccountState();bindTipControls();refreshSession();initSquare();

@@ -1,29 +1,14 @@
-SOUTHERN NUTRITION — WEBSITE UPDATE V2
+Southern Nutrition V8
 
-Added:
-- "Build Your Own Loaded Tea" as its own menu item.
-- Two flavors included in custom tea; additional flavors +$1 each.
-- All loaded teas now open a customization screen.
-- Tea add-ons:
-  * Fiber +$3.50
-  * Collagen +$3.50
-  * Aloe +$1.00
-  * Extra Liftoff +$3.50
-- Caffeine notice on loaded teas and stronger warning when Extra Liftoff is selected.
-- Customer account / login interface.
-- Southern Rewards 9-dot progress display.
-- Account profile view prepared for order history/favorites later.
-- Existing delivery, office/group order, cart and overall layout retained.
-
-IMPORTANT:
-The account/login system in this version is a FRONT-END DEMO stored in the customer's browser. It is intentionally labeled as demo mode. Do not use it as the permanent live customer account system. Before launch, connect the login/rewards UI to a secure backend/customer database.
-
-Square checkout remains dependent on your secure /api/config and /api/payment backend being configured.
-
-
-V3 additions:
-- 10+ drinks automatically receive $1 off every drink (base drink discount; add-ons remain full price).
-- Cart shows progress toward group discount and total savings once unlocked.
-- Checkout includes optional No Tip / 10% / 15% / 20% / custom-dollar tipping.
-- Checkout total includes the selected tip.
-- Square backend calculation updated to validate custom tea flavors/add-ons, apply group discount server-side, and include the tip securely.
+- Replaced demo/localStorage customer login with Cloudflare D1-backed accounts.
+- Passwords are PBKDF2-SHA256 hashed; raw passwords are never stored.
+- Added secure HttpOnly/Secure/SameSite session cookies with a 30-day session.
+- Added signup, login, logout, and current-session API endpoints.
+- Signup creates or links a Square Customer profile and stores only the Square customer ID in D1.
+- Logged-in Square payments are now attached to that Square customer ID.
+- Account profile shows whether Square linking is ready.
+- Reward UI is ready for Square Loyalty; actual points remain disabled until a Square Loyalty program/subscription is enabled and connected.
+- Email is required for new accounts because the current D1 users table requires it.
+- Password minimum is now 8 characters.
+- Bumped cart storage key to V8 and safely migrates valid old cart items.
+- Added the D1 binding to wrangler.jsonc so GitHub/Cloudflare deployments keep the DB connection.

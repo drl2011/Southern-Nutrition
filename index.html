@@ -145,10 +145,10 @@
       <form id="accountForm">
         <label id="nameField" class="hidden">First name<input id="accountName" autocomplete="given-name" placeholder="First name"></label>
         <label>Phone number<input id="accountPhone" autocomplete="tel" inputmode="tel" placeholder="(555) 555-5555" required></label>
-        <label id="emailField" class="hidden">Email <span class="optional">(optional)</span><input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
-        <label>Password<input id="accountPassword" type="password" autocomplete="current-password" minlength="4" placeholder="Password" required></label>
+        <label id="emailField" class="hidden">Email<input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+        <label>Password<input id="accountPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required></label>
         <button class="btn primary full" id="accountSubmit" type="submit">Log in</button>
-        <p class="form-note auth-note">Account login is in website-demo mode until the secure customer database is connected.</p>
+        <p class="form-note auth-note">Your password is securely hashed. Card information is handled by Square and is never stored on this site.</p>
         <p id="accountMessage" class="form-note"></p>
       </form>
     </div>
