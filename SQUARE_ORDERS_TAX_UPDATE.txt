@@ -1,0 +1,16 @@
+Southern Nutrition — Square Orders + Sales Tax
+
+Checkout now:
+1. Calculates tax through Square before the customer pays.
+2. Shows the Square-calculated sales tax and final total in checkout.
+3. Creates a real Square Order with the drink line items.
+4. Creates a scheduled DELIVERY fulfillment for the selected 30-minute window.
+5. Sends the customer's delivery address/contact details to the Square Order.
+6. Associates the card payment with that Square Order.
+7. Records the tip separately as Square tip money.
+8. Keeps the 10+ drink discount.
+9. Keeps the D1 delivery-slot reservation.
+
+Tax is NOT hard-coded. Square's configured Catalog Tax is used. The applicable
+Square Catalog Tax must be enabled for custom/ad-hoc amounts. This avoids
+guessing or hard-coding an incorrect local tax rate.

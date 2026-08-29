@@ -14,7 +14,7 @@ const json=(data,status=200,headers={})=>new Response(JSON.stringify(data),{stat
 
 function calculateOrder(cart, requestedTipCents){
   if(!Array.isArray(cart)||!cart.length) throw new Error('Your cart is empty.');
-  let rawAmount=0,drinkCount=0; const items=[];
+  let rawAmount=0,drinkCount=0; const items=[],lineItems=[];
   for(const line of cart){
     const product=MENU[line.id],qty=Number(line.qty);
     if(!product||!Number.isInteger(qty)||qty<1||qty>50) throw new Error('The cart contains an invalid item.');
@@ -36,13 +36,15 @@ function calculateOrder(cart, requestedTipCents){
       if(whipped){unit+=100;details.push('Whipped Cream');}
     }
     rawAmount+=unit*qty; drinkCount+=qty;
-    items.push(`${qty}x ${product.name}${details.length?' ('+details.join(' / ')+')':''}`);
+    const itemName=`${product.name}${details.length?' ('+details.join(' / ')+')':''}`;
+    items.push(`${qty}x ${itemName}`);
+    lineItems.push({name:itemName.slice(0,255),quantity:String(qty),base_price_money:{amount:unit,currency:'USD'}});
   }
   const discount=drinkCount>=10?drinkCount*100:0;
   const subtotal=Math.max(0,rawAmount-discount);
   const tipCents=Math.max(0,Math.round(Number(requestedTipCents)||0));
   if(tipCents>10000 || tipCents>Math.max(5000,Math.round(subtotal*.5))) throw new Error('The tip amount is too high. Please choose a smaller tip.');
-  return {amount:subtotal+tipCents,subtotal,tipCents,discount,drinkCount,items};
+  return {amount:subtotal+tipCents,subtotal,tipCents,discount,drinkCount,items,lineItems};
 }
 
 function normalizePhone(value){
@@ -292,21 +294,24 @@ async function adminUsers(request,env){
     if(!access.user) return json({error:'Log in to continue.'},401);
     if(!access.admin) return json({error:'Admin access required.'},403);
     await ensureAdminSchema(env);
+    await ensureAddressSchema(env);
     const url=new URL(request.url);
     const q=String(url.searchParams.get('q')||'').trim().slice(0,100);
     const like=`%${q.replaceAll('%','\\%').replaceAll('_','\\_')}%`;
+    const fields=`id,name,phone,email,square_customer_id,created_at,is_disabled,is_admin,address_street,address_unit,address_city,address_state,address_zip,address_workplace,address_instructions`;
     const query=q
-      ? `SELECT id,name,phone,email,square_customer_id,created_at,is_disabled,is_admin FROM users WHERE CAST(id AS TEXT) LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' ORDER BY created_at DESC`
-      : `SELECT id,name,phone,email,square_customer_id,created_at,is_disabled,is_admin FROM users ORDER BY created_at DESC`;
+      ? `SELECT ${fields} FROM users WHERE CAST(id AS TEXT) LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' OR address_street LIKE ? ESCAPE '\\' OR address_city LIKE ? ESCAPE '\\' OR address_zip LIKE ? ESCAPE '\\' OR address_workplace LIKE ? ESCAPE '\\' ORDER BY created_at DESC`
+      : `SELECT ${fields} FROM users ORDER BY created_at DESC`;
     const result=q
-      ? await env.DB.prepare(query).bind(like,like,like,like).all()
+      ? await env.DB.prepare(query).bind(like,like,like,like,like,like,like,like).all()
       : await env.DB.prepare(query).all();
     const statsRow=await env.DB.prepare(`SELECT COUNT(*) AS total, SUM(CASE WHEN square_customer_id IS NOT NULL AND square_customer_id <> '' THEN 1 ELSE 0 END) AS square_linked, SUM(CASE WHEN datetime(created_at) >= datetime('now','-7 days') THEN 1 ELSE 0 END) AS recent_7, SUM(CASE WHEN COALESCE(is_disabled,0)=1 THEN 1 ELSE 0 END) AS disabled FROM users`).first();
     const ids=[...new Set((result.results||[]).map(r=>r.square_customer_id).filter(Boolean))];
     const loyalty=await getLoyaltyForCustomers(env,ids);
     const users=(result.results||[]).map(row=>{
       const loyaltyAccount=row.square_customer_id?loyalty.map.get(row.square_customer_id):null;
-      return {id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at,disabled:Number(row.is_disabled)===1,isAdmin:Number(row.is_admin)===1,loyalty:loyaltyAccount||null};
+      const address=row.address_street?{street:row.address_street||'',unit:row.address_unit||'',city:row.address_city||'',state:row.address_state||'',zip:row.address_zip||'',workplace:row.address_workplace||'',instructions:row.address_instructions||''}:null;
+      return {id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at,disabled:Number(row.is_disabled)===1,isAdmin:Number(row.is_admin)===1,loyalty:loyaltyAccount||null,address};
     });
     return json({users,stats:{total:Number(statsRow?.total||0),squareLinked:Number(statsRow?.square_linked||0),recent7Days:Number(statsRow?.recent_7||0),disabled:Number(statsRow?.disabled||0)},loyalty:{available:loyalty.available,error:loyalty.error}});
   }catch(e){console.log('admin users error',e);return json({error:'Unable to load customer accounts right now.'},500);}
@@ -453,45 +458,208 @@ async function releaseDeliverySlot(env,start){
   }
 }
 
+
+function centralRequestedTimeToRFC3339(value){
+  const p=parseRequestedTime(value);
+  if(!p) throw new Error('Choose an available delivery window.');
+  const target=Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute);
+  let guess=target;
+  const formatter=new Intl.DateTimeFormat('en-US',{
+    timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'
+  });
+  for(let i=0;i<2;i++){
+    const parts=Object.fromEntries(formatter.formatToParts(new Date(guess)).map(x=>[x.type,x.value]));
+    const represented=Date.UTC(+parts.year,+parts.month-1,+parts.day,+parts.hour,+parts.minute,+parts.second);
+    guess+=target-represented;
+  }
+  return new Date(guess).toISOString();
+}
+function squareAddress(addr){
+  return {
+    address_line_1:String(addr.street||'').trim().slice(0,500),
+    ...(String(addr.unit||'').trim()?{address_line_2:String(addr.unit).trim().slice(0,500)}:{}),
+    locality:String(addr.city||'').trim().slice(0,255),
+    administrative_district_level_1:String(addr.state||'').trim().toUpperCase().slice(0,3),
+    postal_code:String(addr.zip||'').trim().slice(0,20),
+    country:'US'
+  };
+}
+function buildSquareOrder(order,body,customerId){
+  const addr=body.deliveryAddress||{};
+  const customerName=String(body.customer?.name||'').trim().slice(0,255);
+  const customerPhone=normalizePhone(body.customer?.phone)||String(body.customer?.phone||'').trim().slice(0,17);
+  const email=normalizeEmail(body.customer?.email||'');
+  const dropoff=[
+    String(addr.workplace||'').trim()?`Workplace: ${String(addr.workplace).trim()}`:'',
+    String(addr.instructions||'').trim(),
+    String(body.notes||'').trim()?`Order notes: ${String(body.notes).trim()}`:''
+  ].filter(Boolean).join(' | ').slice(0,550);
+  const squareOrder={
+    location_id:'',
+    source:{name:'Southern Nutrition Website'},
+    line_items:order.lineItems,
+    pricing_options:{auto_apply_taxes:true},
+    fulfillments:[{
+      type:'DELIVERY',
+      state:'PROPOSED',
+      delivery_details:{
+        recipient:{
+          display_name:customerName,
+          phone_number:customerPhone,
+          ...(email?{email_address:email}:{}),
+          address:squareAddress(addr)
+        },
+        schedule_type:'SCHEDULED',
+        deliver_at:centralRequestedTimeToRFC3339(body.requestedTime),
+        delivery_window_duration:'PT30M',
+        ...(dropoff?{dropoff_notes:dropoff}:{})
+      }
+    }]
+  };
+  if(customerId) squareOrder.customer_id=customerId;
+  if(order.discount>0){
+    squareOrder.discounts=[{
+      uid:'group-discount',
+      name:'10+ Drink Discount',
+      type:'FIXED_AMOUNT',
+      amount_money:{amount:order.discount,currency:'USD'},
+      scope:'ORDER'
+    }];
+  }
+  return squareOrder;
+}
+async function calculateSquareOrder(env,order,body,customerId){
+  const squareOrder=buildSquareOrder(order,body,customerId);
+  squareOrder.location_id=env.SQUARE_LOCATION_ID;
+  const data=await squareRequest(env,'/v2/orders/calculate',{
+    method:'POST',
+    body:JSON.stringify({order:squareOrder})
+  });
+  return data.order;
+}
+async function createSquareOrder(env,order,body,customerId){
+  const squareOrder=buildSquareOrder(order,body,customerId);
+  squareOrder.location_id=env.SQUARE_LOCATION_ID;
+  const data=await squareRequest(env,'/v2/orders',{
+    method:'POST',
+    body:JSON.stringify({idempotency_key:crypto.randomUUID(),order:squareOrder})
+  });
+  return data.order;
+}
+async function cancelSquareOrder(env,order){
+  if(!order?.id||order.version==null)return;
+  try{
+    await squareRequest(env,`/v2/orders/${encodeURIComponent(order.id)}`,{
+      method:'PUT',
+      body:JSON.stringify({order:{location_id:env.SQUARE_LOCATION_ID,state:'CANCELED',version:order.version},fields_to_clear:[]})
+    });
+  }catch(e){console.log('Square order cleanup error',e);}
+}
+async function orderPreview(request,env){
+  try{
+    if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID)return json({error:'Square is not configured on the server yet.'},503);
+    const body=await request.json();
+    const requestedTimeError=validateRequestedTime(body.requestedTime);
+    if(requestedTimeError)return json({error:requestedTimeError},400);
+    const order=calculateOrder(body.cart,body.tipCents);
+    const user=await getSessionUser(request,env);
+    const calculated=await calculateSquareOrder(env,order,body,user?.square_customer_id||null);
+    const subtotal=Number(calculated?.total_money?.amount||0);
+    const tax=Number(calculated?.total_tax_money?.amount||0);
+    return json({
+      subtotalBeforeTip:subtotal,
+      tax,
+      tipCents:order.tipCents,
+      total:subtotal+order.tipCents
+    });
+  }catch(e){
+    return json({error:e?.message||'Unable to calculate tax.'},400);
+  }
+}
+
 async function payment(request, env){
-  let reservedSlot='';
+  let reservedSlot='',squareOrder=null;
   try{
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
-    const body=await request.json(); if(!body.sourceId) return json({error:'Missing Square payment token.'},400);
+    const body=await request.json();
+    if(!body.sourceId) return json({error:'Missing Square payment token.'},400);
     const requestedTimeError=validateRequestedTime(body.requestedTime);
     if(requestedTimeError) return json({error:requestedTimeError},400);
+
     const slotUser=env.DB?await getSessionUser(request,env):null;
     if(env.DB){
       const reserved=await reserveDeliverySlot(env,body.requestedTime,slotUser?.id);
       if(!reserved) return json({error:'That delivery window was just taken. Please choose another available time.'},409);
       reservedSlot=body.requestedTime;
     }
+
     const order=calculateOrder(body.cart,body.tipCents);
-    const fulfillment='DELIVERY';
-    const customerName=String(body.customer?.name||'').trim().slice(0,100), customerPhone=String(body.customer?.phone||'').trim().slice(0,30);
-    if(!customerName||!customerPhone) return json({error:'Name and phone are required.'},400);
-    const addr=body.deliveryAddress||{}; const street=String(addr.street||'').trim().slice(0,120), city=String(addr.city||'').trim().slice(0,80), state=String(addr.state||'').trim().slice(0,20), zip=String(addr.zip||'').trim().slice(0,20); if(!street||!city||!state||!zip) return json({error:'Complete delivery address is required.'},400); const addressText=[String(addr.workplace||'').trim().slice(0,100),street,String(addr.unit||'').trim().slice(0,50),`${city}, ${state} ${zip}`].filter(Boolean).join(', ');
-    const endpoint=`${squareBase(env)}/v2/payments`;
-    const notes=[`Southern Nutrition - ${fulfillment}`,order.items.join(', '),order.discount?`Group discount: -$${(order.discount/100).toFixed(2)}`:'',order.tipCents?`Tip: $${(order.tipCents/100).toFixed(2)}`:'No tip',body.requestedTime?`Requested: ${String(body.requestedTime).slice(0,40)}`:'',`Address: ${addressText}`,addr.instructions?`Delivery instructions: ${String(addr.instructions).slice(0,180)}`:'',body.notes?`Notes: ${String(body.notes).slice(0,180)}`:'',`Customer: ${customerName} / ${customerPhone}`].filter(Boolean);
-    const squareBody={source_id:body.sourceId,idempotency_key:crypto.randomUUID(),amount_money:{amount:order.amount,currency:'USD'},location_id:env.SQUARE_LOCATION_ID,autocomplete:true,note:notes.join(' | ').slice(0,500)};
+    const customerName=String(body.customer?.name||'').trim().slice(0,100);
+    const customerPhone=String(body.customer?.phone||'').trim().slice(0,30);
+    if(!customerName||!customerPhone) throw new Error('Name and phone are required.');
+
+    const addr=body.deliveryAddress||{};
+    const street=String(addr.street||'').trim(),city=String(addr.city||'').trim(),state=String(addr.state||'').trim(),zip=String(addr.zip||'').trim();
+    if(!street||!city||!state||!zip) throw new Error('Complete delivery address is required.');
+
+    const user=slotUser||await getSessionUser(request,env);
+    squareOrder=await createSquareOrder(env,order,body,user?.square_customer_id||null);
+    const orderAmount=Number(squareOrder?.total_money?.amount);
+    if(!squareOrder?.id||!Number.isInteger(orderAmount)||orderAmount<0) throw new Error('Square could not calculate the order total.');
+
+    const squareBody={
+      source_id:body.sourceId,
+      idempotency_key:crypto.randomUUID(),
+      amount_money:{amount:orderAmount,currency:'USD'},
+      ...(order.tipCents?{tip_money:{amount:order.tipCents,currency:'USD'}}:{}),
+      location_id:env.SQUARE_LOCATION_ID,
+      order_id:squareOrder.id,
+      autocomplete:true,
+      note:`Southern Nutrition website delivery — ${body.requestedTime}`.slice(0,500)
+    };
     if(body.customer?.email) squareBody.buyer_email_address=String(body.customer.email).trim().slice(0,254);
-    const user=await getSessionUser(request,env); if(user?.square_customer_id)squareBody.customer_id=user.square_customer_id;
-    const response=await fetch(endpoint,{method:'POST',headers:{Authorization:`Bearer ${env.SQUARE_ACCESS_TOKEN}`,'Square-Version':'2026-08-19','Content-Type':'application/json'},body:JSON.stringify(squareBody)});
+    if(user?.square_customer_id) squareBody.customer_id=user.square_customer_id;
+
+    const response=await fetch(`${squareBase(env)}/v2/payments`,{
+      method:'POST',
+      headers:{Authorization:`Bearer ${env.SQUARE_ACCESS_TOKEN}`,'Square-Version':'2026-08-19','Content-Type':'application/json'},
+      body:JSON.stringify(squareBody)
+    });
     const result=await response.json();
     if(!response.ok){
+      await cancelSquareOrder(env,squareOrder);
+      squareOrder=null;
       if(env.DB&&reservedSlot){await releaseDeliverySlot(env,reservedSlot);reservedSlot='';}
       return json({error:result?.errors?.[0]?.detail||'Square declined or could not process the payment.'},response.status>=500?502:400);
     }
+
     if(env.DB&&reservedSlot){
       await env.DB.prepare(`UPDATE delivery_slots SET payment_id=? WHERE slot_start=?`).bind(result.payment?.id||'',reservedSlot).run();
       reservedSlot='';
     }
-    return json({ok:true,paymentId:result.payment?.id,receiptUrl:result.payment?.receipt_url||null,amount:order.amount,subtotal:order.subtotal,tipCents:order.tipCents,discount:order.discount,status:result.payment?.status||'COMPLETED',customerLinked:Boolean(user?.square_customer_id)});
+    const tax=Number(squareOrder?.total_tax_money?.amount||0);
+    const charged=orderAmount+order.tipCents;
+    return json({
+      ok:true,
+      paymentId:result.payment?.id,
+      orderId:squareOrder.id,
+      receiptUrl:result.payment?.receipt_url||null,
+      amount:charged,
+      subtotal:order.subtotal,
+      tax,
+      tipCents:order.tipCents,
+      discount:order.discount,
+      status:result.payment?.status||'COMPLETED',
+      customerLinked:Boolean(user?.square_customer_id)
+    });
   }catch(e){
+    if(squareOrder) await cancelSquareOrder(env,squareOrder);
     if(env.DB&&reservedSlot) await releaseDeliverySlot(env,reservedSlot);
     return json({error:e?.message||'Unable to process payment.'},400);
   }
 }
+
 export default {
   async fetch(request, env){
     const url=new URL(request.url);
@@ -508,6 +676,7 @@ export default {
     if(url.pathname==='/api/admin/users' && request.method==='GET') return adminUsers(request,env);
     if(url.pathname.startsWith('/api/admin/users/') && request.method==='PATCH') return adminUpdateUser(request,env,url.pathname.split('/').pop());
     if(url.pathname==='/api/delivery-slots' && request.method==='GET') return deliverySlots(request,env);
+    if(url.pathname==='/api/order-preview' && request.method==='POST') return orderPreview(request,env);
     if(url.pathname==='/api/payment' && request.method==='POST') return payment(request,env);
     if((url.pathname==='/admin'||url.pathname==='/admin/') && request.method==='GET'){
       const adminUrl=new URL('/admin.html',request.url);

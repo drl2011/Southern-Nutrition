@@ -1,0 +1,1 @@
+Admin dashboard now shows each customer saved delivery address and delivery instructions. Address search is also supported. Customer-facing menu/cart/login code was not changed.

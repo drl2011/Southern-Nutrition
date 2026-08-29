@@ -62,3 +62,14 @@
 .admin-label-note{font-weight:500;color:var(--admin-muted);font-size:.82rem}.admin-toggle{display:flex;gap:12px;align-items:flex-start;margin:18px 0;padding:14px;border:1px solid var(--admin-border);border-radius:14px;background:#fff9f7}.admin-toggle input{width:20px;height:20px;margin-top:2px}.admin-toggle span{display:grid;gap:2px}.admin-toggle small{color:var(--admin-muted)}
 .admin-edit-note{font-size:.86rem;color:var(--admin-muted);background:#f8f4f5;border-radius:12px;padding:11px 12px}.admin-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
 @media(max-width:760px){.admin-stats{grid-template-columns:1fr 1fr}.admin-edit-grid{grid-template-columns:1fr}.admin-edit-grid .admin-wide{grid-column:auto}.admin-dialog form{padding:18px}.admin-dialog-actions{display:grid;grid-template-columns:1fr 1fr}.admin-dialog-actions .btn{width:100%}}
+
+/* Saved delivery addresses on admin dashboard */
+.admin-table{min-width:1380px}
+.admin-address-cell{min-width:230px;line-height:1.35}
+.admin-address-cell strong{font-size:.9rem}
+.admin-no-address{color:var(--admin-muted);font-style:italic}
+.admin-address-box{margin:16px 0 0;padding:14px;border:1px solid var(--admin-border);border-radius:14px;background:#fff9f7;line-height:1.45}
+.admin-address-box>strong{display:block;margin-bottom:7px}
+.admin-address-box small{display:block;color:var(--admin-muted);margin-top:7px}
+.admin-address-instructions{display:block;color:var(--admin-muted);margin-top:4px}
+@media(max-width:760px){.admin-address-line{align-items:flex-start}.admin-address-line span:last-child{max-width:68%}}

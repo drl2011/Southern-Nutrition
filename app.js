@@ -329,10 +329,37 @@ function checkoutSummary(){
     `<div class="checkout-line tip-summary"><span>Tip</span><strong>${money(tipAmount())}</strong></div>`+
     `<div class="checkout-line checkout-total"><span>Total</span><strong>${money(orderTotal())}</strong></div>`;
 }
+let squarePreview=null;
+function checkoutSummaryWithTax(){
+  if(!squarePreview)return checkoutSummary();
+  const base=checkoutSummary().replace(
+    `<div class="checkout-line tip-summary"><span>Tip</span><strong>${money(tipAmount())}</strong></div><div class="checkout-line checkout-total"><span>Total</span><strong>${money(orderTotal())}</strong></div>`,
+    `<div class="checkout-line"><span>Sales tax</span><strong>${money((squarePreview.tax||0)/100)}</strong></div><div class="checkout-line tip-summary"><span>Tip</span><strong>${money(tipAmount())}</strong></div><div class="checkout-line checkout-total"><span>Total</span><strong>${money(((squarePreview.subtotalBeforeTip||0)+tipAmount())/100)}</strong></div>`
+  );
+  return base;
+}
+async function refreshSquarePreview(){
+  try{
+    const response=await fetch('/api/order-preview',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+      cart,deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,
+      notes:$('#orderNotes').value.trim(),customer:{name:$('#customerName').value.trim(),phone:$('#customerPhone').value.trim(),email:$('#customerEmail').value.trim()},
+      tipCents:selectedTipCents
+    })});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||'Unable to calculate tax.');
+    squarePreview=result;
+    $('#checkoutOrder').innerHTML=checkoutSummaryWithTax();
+    return true;
+  }catch(e){
+    squarePreview=null;
+    $('#paymentMessage').textContent=e.message;
+    return false;
+  }
+}
 function setTipCents(cents){
   selectedTipCents=Math.max(0,Math.round(Number(cents)||0));
   $$('.tip-btn').forEach(b=>b.classList.toggle('active',Number(b.dataset.percent)>=0 && Math.round(subtotal()*Number(b.dataset.percent))===selectedTipCents));
-  $('#checkoutOrder').innerHTML=checkoutSummary();
+  $('#checkoutOrder').innerHTML=checkoutSummary(); refreshSquarePreview();
 }
 function selectTipPercent(percent){
   $('#customTip').value='';
@@ -350,9 +377,9 @@ $$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return
 $('#mobileCartBar').onclick=openCart;
 $('#accountBtn').onclick=()=>openAccount();$('#joinRewardsBtn').onclick=()=>openAccount('signup');$('#rewardLoginBtn').onclick=()=>openAccount('login');$('#accountDetailsBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
 
-$('#placeOrder').onclick=async()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}const timeError=validateRequestedTime($('#orderTime').value);if(timeError)return alert(timeError);if(currentUser)await saveCurrentAddress();selectedTipCents=0;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();};
+$('#placeOrder').onclick=async()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}const timeError=validateRequestedTime($('#orderTime').value);if(timeError)return alert(timeError);if(currentUser)await saveCurrentAddress();selectedTipCents=0;squarePreview=null;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();$('#paymentMessage').textContent='Calculating sales tax…';const ok=await refreshSquarePreview();if(ok)$('#paymentMessage').textContent='';};
 $('#checkoutClose').onclick=()=>$('#checkoutDialog').close();
-$('#payButton').onclick=async()=>{const timeError=validateRequestedTime($('#orderTime').value);if(timeError){$('#paymentMessage').textContent=timeError;return;}const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok){if(response.status===409)loadDeliverySlots();throw new Error(result.error||'Payment failed.');}cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
+$('#payButton').onclick=async()=>{const timeError=validateRequestedTime($('#orderTime').value);if(timeError){$('#paymentMessage').textContent=timeError;return;}const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const previewOk=await refreshSquarePreview();if(!previewOk)throw new Error('Could not confirm sales tax. Please try again.');const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok){if(response.status===409)loadDeliverySlots();throw new Error(result.error||'Payment failed.');}cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
 renderMenu();renderCart();renderAccountState();bindTipControls();setupDeliverySlots();refreshSession();initSquare();

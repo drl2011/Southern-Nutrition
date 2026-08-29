@@ -57,7 +57,7 @@
         <div class="admin-toolbar">
           <div><span class="eyebrow">Customers</span><h2>All customer accounts</h2></div>
           <div class="admin-tools">
-            <input id="customerSearch" type="search" placeholder="Search name, phone, email, or ID" autocomplete="off" />
+            <input id="customerSearch" type="search" placeholder="Search name, phone, email, address, or ID" autocomplete="off" />
             <button class="btn ghost" id="refreshCustomers">Refresh</button>
           </div>
         </div>
@@ -65,7 +65,7 @@
         <p id="adminMessage" class="form-note" role="status"></p>
         <div class="admin-table-wrap">
           <table class="admin-table">
-            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Square</th><th>Loyalty</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Delivery address</th><th>Square</th><th>Loyalty</th><th>Status</th><th>Joined</th><th></th></tr></thead>
             <tbody id="customerRows"></tbody>
           </table>
         </div>
@@ -86,6 +86,11 @@
         <label>Phone<input id="editUserPhone" inputmode="tel" autocomplete="off" required /></label>
         <label class="admin-wide">Email<input id="editUserEmail" type="email" autocomplete="off" required /></label>
         <label class="admin-wide">Set a new password <span class="admin-label-note">(leave blank to keep current password)</span><input id="editUserPassword" type="password" minlength="8" autocomplete="new-password" placeholder="8+ characters" /></label>
+      </div>
+      <div class="admin-address-box">
+        <strong>Saved delivery address</strong>
+        <div id="editUserAddress">No saved address</div>
+        <small id="editUserInstructions"></small>
       </div>
       <label class="admin-toggle"><input id="editUserDisabled" type="checkbox" /><span><strong>Disable this account</strong><small>Prevents login and signs the customer out.</small></span></label>
       <div class="admin-edit-note">Name, phone, and email changes update the Southern Nutrition website account. Square customer details are not changed from this screen.</div>
