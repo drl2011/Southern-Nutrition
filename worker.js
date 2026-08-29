@@ -83,12 +83,13 @@ async function verifyPassword(password,stored){
 async function getSessionUser(request,env){
   if(!env.DB)return null;
   const sessionId=parseCookies(request)[SESSION_COOKIE]; if(!sessionId)return null;
+  await ensureLastNameSchema(env);
   let row;
   try{
-    row=await env.DB.prepare(`SELECT u.id,u.email,u.phone,u.name,u.square_customer_id,COALESCE(u.is_disabled,0) AS is_disabled,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? LIMIT 1`).bind(sessionId).first();
+    row=await env.DB.prepare(`SELECT u.id,u.email,u.phone,u.name,u.last_name,u.square_customer_id,COALESCE(u.is_disabled,0) AS is_disabled,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? LIMIT 1`).bind(sessionId).first();
   }catch(e){
     // Backward compatibility before the admin schema has added is_disabled.
-    row=await env.DB.prepare(`SELECT u.id,u.email,u.phone,u.name,u.square_customer_id,0 AS is_disabled,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? LIMIT 1`).bind(sessionId).first();
+    row=await env.DB.prepare(`SELECT u.id,u.email,u.phone,u.name,NULL AS last_name,u.square_customer_id,0 AS is_disabled,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? LIMIT 1`).bind(sessionId).first();
   }
   if(!row)return null;
   if(new Date(row.expires_at).getTime()<=Date.now()||Number(row.is_disabled)===1){await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sessionId).run();return null;}
@@ -100,7 +101,7 @@ async function createSession(userId,env){
   await env.DB.prepare('INSERT INTO sessions (id,user_id,expires_at) VALUES (?,?,?)').bind(id,userId,expires).run();
   return id;
 }
-function publicUser(row){return {id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),credits:0,loyaltyEnabled:false};}
+function publicUser(row){return {id:row.id,name:row.name,lastName:row.last_name||'',phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),credits:0,loyaltyEnabled:false};}
 function squareBase(env){return env.SQUARE_ENVIRONMENT==='production'?'https://connect.squareup.com':'https://connect.squareupsandbox.com'}
 async function squareRequest(env,path,options={}){
   if(!env.SQUARE_ACCESS_TOKEN) throw new Error('Square is not configured.');
@@ -222,7 +223,7 @@ async function login(request,env){
     await ensureAdminSchema(env);
     const body=await request.json(),phone=normalizePhone(body.phone),password=String(body.password||'');
     if(!phone||!password)return json({error:'Enter your phone number and password.'},400);
-    const row=await env.DB.prepare('SELECT id,email,phone,name,password_hash,square_customer_id,COALESCE(is_disabled,0) AS is_disabled FROM users WHERE phone=? LIMIT 1').bind(phone).first();
+    const row=await env.DB.prepare('SELECT id,email,phone,name,last_name,password_hash,square_customer_id,COALESCE(is_disabled,0) AS is_disabled FROM users WHERE phone=? LIMIT 1').bind(phone).first();
     if(!row||!(await verifyPassword(password,row.password_hash)))return json({error:'Phone number or password does not match.'},401);
     if(Number(row.is_disabled)===1)return json({error:'This account has been disabled. Please contact Southern Nutrition.'},403);
     await env.DB.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(new Date().toISOString()).run();
@@ -330,7 +331,7 @@ async function adminUsers(request,env){
     const users=(result.results||[]).map(row=>{
       const loyaltyAccount=row.square_customer_id?loyalty.map.get(row.square_customer_id):null;
       const address=row.address_street?{street:row.address_street||'',unit:row.address_unit||'',city:row.address_city||'',state:row.address_state||'',zip:row.address_zip||'',workplace:row.address_workplace||'',instructions:row.address_instructions||''}:null;
-      return {id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at,disabled:Number(row.is_disabled)===1,isAdmin:Number(row.is_admin)===1,loyalty:loyaltyAccount||null,address};
+      return {id:row.id,name:row.name,lastName:row.last_name||'',phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at,disabled:Number(row.is_disabled)===1,isAdmin:Number(row.is_admin)===1,loyalty:loyaltyAccount||null,address};
     });
     return json({users,stats:{total:Number(statsRow?.total||0),squareLinked:Number(statsRow?.square_linked||0),recent7Days:Number(statsRow?.recent_7||0),disabled:Number(statsRow?.disabled||0)},loyalty:{available:loyalty.available,error:loyalty.error}});
   }catch(e){console.log('admin users error',e);return json({error:'Unable to load customer accounts right now.'},500);}
