@@ -57,8 +57,8 @@ function base64ToBytes(str){const binary=atob(str);return Uint8Array.from(binary
 async function hashPassword(password,saltBytes=null){
   const salt=saltBytes||crypto.getRandomValues(new Uint8Array(16));
   const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:210000},key,256);
-  return `pbkdf2_sha256$210000$${bytesToBase64(salt)}$${bytesToBase64(new Uint8Array(bits))}`;
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:100000},key,256);
+  return `pbkdf2_sha256$100000$${bytesToBase64(salt)}$${bytesToBase64(new Uint8Array(bits))}`;
 }
 async function verifyPassword(password,stored){
   try{
