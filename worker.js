@@ -197,6 +197,7 @@ async function savedAddress(request,env){
 async function signup(request,env){
   if(!env.DB)return json({error:'Customer database is not connected.'},503);
   try{
+    await ensureLastNameSchema(env);
     const body=await request.json(); const firstName=String(body.name||'').trim().slice(0,40), lastName=String(body.lastName||'').trim().slice(0,40), name=`${firstName} ${lastName}`.trim().slice(0,80), phone=normalizePhone(body.phone), email=normalizeEmail(body.email), password=String(body.password||'');
     if(!firstName)return json({error:'Enter your first name.'},400);
     if(!lastName)return json({error:'Enter your last name.'},400);
@@ -206,11 +207,11 @@ async function signup(request,env){
     const existing=await env.DB.prepare('SELECT id FROM users WHERE phone=? OR email=? LIMIT 1').bind(phone,email).first();
     if(existing)return json({error:'An account with that phone number or email already exists.'},409);
     const passwordHash=await hashPassword(password);
-    const inserted=await env.DB.prepare('INSERT INTO users (email,phone,name,password_hash,square_customer_id) VALUES (?,?,?,?,NULL)').bind(email,phone,name,passwordHash).run();
+    const inserted=await env.DB.prepare('INSERT INTO users (email,phone,name,last_name,password_hash,square_customer_id) VALUES (?,?,?,?,?,NULL)').bind(email,phone,firstName,lastName,passwordHash).run();
     const userId=inserted.meta.last_row_id;
     let squareCustomer=null;
     try{squareCustomer=await ensureSquareCustomer(env,{name:firstName,lastName,phone,email});if(squareCustomer?.id)await env.DB.prepare('UPDATE users SET square_customer_id=? WHERE id=?').bind(squareCustomer.id,userId).run();}catch(e){console.log('Square customer link failed',e?.message);}
-    const row=await env.DB.prepare('SELECT id,email,phone,name,square_customer_id FROM users WHERE id=?').bind(userId).first();
+    const row=await env.DB.prepare('SELECT id,email,phone,name,last_name,square_customer_id FROM users WHERE id=?').bind(userId).first();
     const sessionId=await createSession(userId,env);
     return json({ok:true,user:{...publicUser(row),address:null}},201,{'Set-Cookie':sessionCookie(sessionId)});
   }catch(e){console.log('signup error',e);return json({error:'Unable to create account right now.'},500);}
@@ -288,6 +289,22 @@ async function getLoyaltyForCustomers(env,customerIds){
     return {available:false,map,error:e?.message||'Square Loyalty is not available.'};
   }
 }
+async function ensureLastNameSchema(env){
+  if(!env.DB) return false;
+  const info=await env.DB.prepare(`PRAGMA table_info(users)`).all();
+  if(!(info.results||[]).some(c=>c.name==='last_name')){
+    await env.DB.prepare(`ALTER TABLE users ADD COLUMN last_name TEXT`).run();
+    const rows=await env.DB.prepare(`SELECT id,name FROM users WHERE name IS NOT NULL AND TRIM(name)<>''`).all();
+    for(const row of (rows.results||[])){
+      const parts=String(row.name||'').trim().split(/\s+/);
+      if(parts.length>1){
+        const first=parts.shift().slice(0,40), last=parts.join(' ').slice(0,40);
+        await env.DB.prepare(`UPDATE users SET name=?,last_name=? WHERE id=?`).bind(first,last,row.id).run();
+      }
+    }
+  }
+  return true;
+}
 async function adminUsers(request,env){
   if(!env.DB) return json({error:'Customer database is not connected.'},503);
   try{
@@ -296,15 +313,16 @@ async function adminUsers(request,env){
     if(!access.admin) return json({error:'Admin access required.'},403);
     await ensureAdminSchema(env);
     await ensureAddressSchema(env);
+    await ensureLastNameSchema(env);
     const url=new URL(request.url);
     const q=String(url.searchParams.get('q')||'').trim().slice(0,100);
     const like=`%${q.replaceAll('%','\\%').replaceAll('_','\\_')}%`;
-    const fields=`id,name,phone,email,square_customer_id,created_at,is_disabled,is_admin,address_street,address_unit,address_city,address_state,address_zip,address_workplace,address_instructions`;
+    const fields=`id,name,last_name,phone,email,square_customer_id,created_at,is_disabled,is_admin,address_street,address_unit,address_city,address_state,address_zip,address_workplace,address_instructions`;
     const query=q
-      ? `SELECT ${fields} FROM users WHERE CAST(id AS TEXT) LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' OR address_street LIKE ? ESCAPE '\\' OR address_city LIKE ? ESCAPE '\\' OR address_zip LIKE ? ESCAPE '\\' OR address_workplace LIKE ? ESCAPE '\\' ORDER BY created_at DESC`
+      ? `SELECT ${fields} FROM users WHERE CAST(id AS TEXT) LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR last_name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' OR address_street LIKE ? ESCAPE '\\' OR address_city LIKE ? ESCAPE '\\' OR address_zip LIKE ? ESCAPE '\\' OR address_workplace LIKE ? ESCAPE '\\' ORDER BY created_at DESC`
       : `SELECT ${fields} FROM users ORDER BY created_at DESC`;
     const result=q
-      ? await env.DB.prepare(query).bind(like,like,like,like,like,like,like,like).all()
+      ? await env.DB.prepare(query).bind(like,like,like,like,like,like,like,like,like).all()
       : await env.DB.prepare(query).all();
     const statsRow=await env.DB.prepare(`SELECT COUNT(*) AS total, SUM(CASE WHEN square_customer_id IS NOT NULL AND square_customer_id <> '' THEN 1 ELSE 0 END) AS square_linked, SUM(CASE WHEN datetime(created_at) >= datetime('now','-7 days') THEN 1 ELSE 0 END) AS recent_7, SUM(CASE WHEN COALESCE(is_disabled,0)=1 THEN 1 ELSE 0 END) AS disabled FROM users`).first();
     const ids=[...new Set((result.results||[]).map(r=>r.square_customer_id).filter(Boolean))];
@@ -324,23 +342,26 @@ async function adminUpdateUser(request,env,userId){
     if(!access.user) return json({error:'Log in to continue.'},401);
     if(!access.admin) return json({error:'Admin access required.'},403);
     await ensureAdminSchema(env);
+    await ensureLastNameSchema(env);
     const id=Number(userId); if(!Number.isInteger(id)||id<1)return json({error:'Invalid customer account.'},400);
-    const existing=await env.DB.prepare('SELECT id,name,phone,email,is_admin,is_disabled FROM users WHERE id=? LIMIT 1').bind(id).first();
+    const existing=await env.DB.prepare('SELECT id,name,last_name,phone,email,is_admin,is_disabled FROM users WHERE id=? LIMIT 1').bind(id).first();
     if(!existing)return json({error:'Customer account not found.'},404);
     const body=await request.json();
-    const name=String(body.name??existing.name??'').trim().slice(0,80);
+    const name=String(body.name??existing.name??'').trim().slice(0,40);
+    const lastName=String(body.lastName??existing.last_name??'').trim().slice(0,40);
     const phone=normalizePhone(body.phone??existing.phone);
     const email=normalizeEmail(body.email??existing.email);
     const disabled=Boolean(body.disabled);
     const newPassword=String(body.newPassword||'');
-    if(!name)return json({error:'Name cannot be blank.'},400);
+    if(!name)return json({error:'First name cannot be blank.'},400);
+    if(!lastName)return json({error:'Last name cannot be blank.'},400);
     if(!phone)return json({error:'Enter a valid 10-digit phone number.'},400);
     if(!email||!validEmail(email))return json({error:'Enter a valid email address.'},400);
     if(newPassword&&newPassword.length<8)return json({error:'New password must be at least 8 characters.'},400);
     if(id===Number(access.user.id)&&disabled)return json({error:'You cannot disable your own admin account.'},400);
     const duplicate=await env.DB.prepare('SELECT id FROM users WHERE (phone=? OR email=?) AND id<>? LIMIT 1').bind(phone,email,id).first();
     if(duplicate)return json({error:'Another account already uses that phone number or email.'},409);
-    await env.DB.prepare('UPDATE users SET name=?,phone=?,email=?,is_disabled=? WHERE id=?').bind(name,phone,email,disabled?1:0,id).run();
+    await env.DB.prepare('UPDATE users SET name=?,last_name=?,phone=?,email=?,is_disabled=? WHERE id=?').bind(name,lastName,phone,email,disabled?1:0,id).run();
     let passwordReset=false;
     if(newPassword){
       const passwordHash=await hashPassword(newPassword);
@@ -349,8 +370,8 @@ async function adminUpdateUser(request,env,userId){
       passwordReset=true;
     }
     if(disabled) await env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(id).run();
-    const row=await env.DB.prepare('SELECT id,name,phone,email,square_customer_id,created_at,is_disabled,is_admin FROM users WHERE id=?').bind(id).first();
-    return json({ok:true,user:{id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at,disabled:Number(row.is_disabled)===1,isAdmin:Number(row.is_admin)===1},passwordReset,selfSessionCleared:passwordReset&&id===Number(access.user.id)});
+    const row=await env.DB.prepare('SELECT id,name,last_name,phone,email,square_customer_id,created_at,is_disabled,is_admin FROM users WHERE id=?').bind(id).first();
+    return json({ok:true,user:{id:row.id,name:row.name,lastName:row.last_name||'',phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at,disabled:Number(row.is_disabled)===1,isAdmin:Number(row.is_admin)===1},passwordReset,selfSessionCleared:passwordReset&&id===Number(access.user.id)});
   }catch(e){console.log('admin update user error',e);return json({error:'Unable to update this customer account right now.'},500);}
 }
 
