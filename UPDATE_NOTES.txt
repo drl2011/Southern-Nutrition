@@ -34,3 +34,11 @@ V14
 - Entire cart drawer now scrolls at every screen size.
 - Cart header stays visible while scrolling.
 - Delivery fields get safe scroll margins for iPad on-screen keyboards/autofill.
+
+V17 - Private Admin Dashboard
+- Added protected /admin dashboard.
+- Added server-side admin authorization for /api/admin/* routes.
+- Added customer account list, search, totals, Square-linked count, and 7-day signup count.
+- Admin data never includes password hashes.
+- Added one-time automatic D1 is_admin column creation when /admin is first checked.
+- Added ADMIN_SETUP.txt with the one-time SQL command needed to grant admin access to your account.

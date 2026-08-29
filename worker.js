@@ -145,6 +145,59 @@ async function logout(request,env){
 async function me(request,env){
   const row=await getSessionUser(request,env); return json({authenticated:Boolean(row),user:row?publicUser(row):null});
 }
+
+async function ensureAdminColumn(env){
+  if(!env.DB) return false;
+  try{
+    await env.DB.prepare('SELECT is_admin FROM users LIMIT 1').first();
+    return true;
+  }catch(e){
+    const msg=String(e?.message||e);
+    if(!/is_admin|no such column/i.test(msg)) throw e;
+    try{
+      await env.DB.prepare('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0').run();
+      return true;
+    }catch(alterError){
+      if(/duplicate column|already exists/i.test(String(alterError?.message||alterError))) return true;
+      throw alterError;
+    }
+  }
+}
+async function adminSession(request,env){
+  const user=await getSessionUser(request,env);
+  if(!user) return {user:null,admin:false};
+  await ensureAdminColumn(env);
+  const access=await env.DB.prepare('SELECT is_admin FROM users WHERE id=? LIMIT 1').bind(user.id).first();
+  return {user,admin:Number(access?.is_admin)===1};
+}
+async function adminMe(request,env){
+  if(!env.DB) return json({error:'Customer database is not connected.'},503);
+  try{
+    const access=await adminSession(request,env);
+    return json({authenticated:Boolean(access.user),admin:access.admin,user:access.user?publicUser(access.user):null});
+  }catch(e){console.log('admin me error',e);return json({error:'Unable to check admin access right now.'},500);}
+}
+async function adminUsers(request,env){
+  if(!env.DB) return json({error:'Customer database is not connected.'},503);
+  try{
+    const access=await adminSession(request,env);
+    if(!access.user) return json({error:'Log in to continue.'},401);
+    if(!access.admin) return json({error:'Admin access required.'},403);
+    const url=new URL(request.url);
+    const q=String(url.searchParams.get('q')||'').trim().slice(0,100);
+    const like=`%${q.replaceAll('%','\\%').replaceAll('_','\\_')}%`;
+    const query=q
+      ? `SELECT id,name,phone,email,square_customer_id,created_at FROM users WHERE name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT 250`
+      : `SELECT id,name,phone,email,square_customer_id,created_at FROM users ORDER BY created_at DESC LIMIT 250`;
+    const result=q
+      ? await env.DB.prepare(query).bind(like,like,like).all()
+      : await env.DB.prepare(query).all();
+    const statsRow=await env.DB.prepare(`SELECT COUNT(*) AS total, SUM(CASE WHEN square_customer_id IS NOT NULL AND square_customer_id <> '' THEN 1 ELSE 0 END) AS square_linked, SUM(CASE WHEN datetime(created_at) >= datetime('now','-7 days') THEN 1 ELSE 0 END) AS recent_7 FROM users`).first();
+    const users=(result.results||[]).map(row=>({id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at}));
+    return json({users,stats:{total:Number(statsRow?.total||0),squareLinked:Number(statsRow?.square_linked||0),recent7Days:Number(statsRow?.recent_7||0)}});
+  }catch(e){console.log('admin users error',e);return json({error:'Unable to load customer accounts right now.'},500);}
+}
+
 async function payment(request, env){
   try{
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
@@ -176,7 +229,19 @@ export default {
     if(url.pathname==='/api/auth/login' && request.method==='POST') return login(request,env);
     if(url.pathname==='/api/auth/logout' && request.method==='POST') return logout(request,env);
     if(url.pathname==='/api/auth/me' && request.method==='GET') return me(request,env);
+    if(url.pathname==='/api/admin/me' && request.method==='GET') return adminMe(request,env);
+    if(url.pathname==='/api/admin/users' && request.method==='GET') return adminUsers(request,env);
     if(url.pathname==='/api/payment' && request.method==='POST') return payment(request,env);
+    if((url.pathname==='/admin'||url.pathname==='/admin/') && request.method==='GET'){
+      const adminUrl=new URL('/admin.html',request.url);
+      const response=await env.ASSETS.fetch(new Request(adminUrl,{method:'GET',headers:request.headers}));
+      const headers=new Headers(response.headers);
+      headers.set('Cache-Control','no-store');
+      headers.set('X-Robots-Tag','noindex, nofollow, noarchive');
+      headers.set('X-Frame-Options','DENY');
+      headers.set('Referrer-Policy','no-referrer');
+      return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+    }
     return env.ASSETS.fetch(request);
   }
 };

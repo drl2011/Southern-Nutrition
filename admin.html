@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <title>Southern Nutrition Admin</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="admin-body">
+  <main class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <span class="eyebrow">Private dashboard</span>
+        <h1>Southern Nutrition Admin</h1>
+        <p>Customer accounts stored in Southern Nutrition's D1 database.</p>
+      </div>
+      <div class="admin-header-actions">
+        <a class="btn ghost" href="/">View website</a>
+        <button class="btn ghost hidden" id="adminLogout">Log out</button>
+      </div>
+    </header>
+
+    <section id="adminLoading" class="admin-card admin-status-card">
+      <strong>Checking access…</strong>
+      <p>Please wait.</p>
+    </section>
+
+    <section id="adminLogin" class="admin-card admin-login hidden">
+      <span class="eyebrow">Admin sign in</span>
+      <h2>Log in with your Southern Rewards account</h2>
+      <p class="admin-muted">Only accounts marked as an administrator can open the dashboard.</p>
+      <form id="adminLoginForm">
+        <label>Phone number<input id="adminPhone" autocomplete="tel" inputmode="tel" placeholder="(555) 555-5555" required /></label>
+        <label>Password<input id="adminPassword" type="password" autocomplete="current-password" minlength="8" placeholder="Your password" required /></label>
+        <button class="btn primary full" id="adminLoginButton" type="submit">Log in</button>
+        <p id="adminLoginMessage" class="form-note" role="status"></p>
+      </form>
+    </section>
+
+    <section id="adminDenied" class="admin-card admin-status-card hidden">
+      <span class="eyebrow">Access denied</span>
+      <h2>This account is not an administrator.</h2>
+      <p id="adminDeniedMessage">The customer account is valid, but it does not have admin permission.</p>
+      <button class="btn ghost" id="adminDeniedLogout">Log out</button>
+    </section>
+
+    <section id="adminDashboard" class="hidden">
+      <div class="admin-stats">
+        <article class="admin-stat"><span>Total accounts</span><strong id="statTotal">—</strong></article>
+        <article class="admin-stat"><span>Square linked</span><strong id="statSquare">—</strong></article>
+        <article class="admin-stat"><span>New in 7 days</span><strong id="statRecent">—</strong></article>
+      </div>
+
+      <section class="admin-card">
+        <div class="admin-toolbar">
+          <div>
+            <span class="eyebrow">Customers</span>
+            <h2>Customer accounts</h2>
+          </div>
+          <div class="admin-tools">
+            <input id="customerSearch" type="search" placeholder="Search name, phone, or email" autocomplete="off" />
+            <button class="btn ghost" id="refreshCustomers">Refresh</button>
+          </div>
+        </div>
+        <p id="adminMessage" class="form-note" role="status"></p>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Square</th><th>Joined</th></tr></thead>
+            <tbody id="customerRows"></tbody>
+          </table>
+        </div>
+        <div id="customerCards" class="admin-customer-cards"></div>
+      </section>
+    </section>
+  </main>
+  <script src="admin.js"></script>
+</body>
+</html>

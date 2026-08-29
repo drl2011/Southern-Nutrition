@@ -1,0 +1,24 @@
+SOUTHERN NUTRITION ADMIN SETUP
+
+The private dashboard is at:
+https://getsouthernnutrition.com/admin
+
+Security:
+- /admin is not linked from the public website.
+- The Worker checks the signed-in account on every /api/admin/* request.
+- Customer data is only returned when users.is_admin = 1.
+- Password hashes are never returned to the admin page.
+
+ONE-TIME SETUP AFTER DEPLOYING V17
+
+1) Visit /admin once. This automatically adds the is_admin column to D1 if it does not exist.
+2) In Cloudflare D1 -> southern-nutrition-db -> Console, mark YOUR existing account as admin using your email:
+
+UPDATE users
+SET is_admin = 1
+WHERE email = 'YOUR-EMAIL-HERE';
+
+3) Then open /admin and log in using the same phone number and password as your Southern Rewards account.
+
+To remove admin access later:
+UPDATE users SET is_admin = 0 WHERE email = 'YOUR-EMAIL-HERE';
