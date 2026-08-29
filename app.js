@@ -12,12 +12,13 @@ window.addEventListener('load', () => {
 const menu = [
   {id:'build-your-own',name:'Build Your Own Loaded Tea',type:'tea',image:'',desc:'Create your own loaded tea. Pick 2 flavors included, then make it yours.',custom:true},
   {id:'hot-mess',name:'Hot Mess',type:'tea',image:'assets/hot-mess.png',desc:'Strawberry • Watermelon • Chili Lime',flavors:['Strawberry','Watermelon']},
-  {id:'purple-paradise',name:'Purple Paradise',type:'tea',image:'assets/purple-paradise.png',desc:'Tropical Fruit • Grape',flavors:['Tropical Fruit','Grape']},
-  {id:'peach-perfect',name:'Peach Perfect',type:'tea',image:'assets/peach-perfect.png',desc:'Peach • Pineapple',flavors:['Peach','Pineapple']},
-  {id:'blueberry-bliss',name:'Blueberry Bliss',type:'tea',image:'assets/blueberry-bliss.png',desc:'Blueberry • Lemon • Lavender',flavors:['Blueberry','Lemon','Lavender']}
+  {id:'southern-paradise',name:'Southern Paradise',type:'tea',image:'assets/southern-paradise.png',desc:'Mango • Pineapple',flavors:['Mango','Pineapple']},
+  {id:'cherry-bombshell',name:'Cherry Bombshell',type:'tea',image:'assets/cherry-bombshell.png',desc:'Cherry • Orange',flavors:['Cherry','Orange']},
+  {id:'brb',name:'BRB — Back Road Breeze',type:'tea',image:'assets/brb.png',desc:'Cherry • Grape',flavors:['Cherry','Grape']},
+  {id:'iced-protein-coffee',name:'Iced Protein Coffee',type:'coffee',image:'',desc:'Protein coffee with your choice of Caramel, Mocha, or House Blend.',coffee:true}
 ];
 
-const flavorOptions = ['Strawberry','Watermelon','Tropical Fruit','Grape','Peach','Pineapple','Blueberry','Lemon','Lavender','Cherry','Piña Colada','Margarita','Blackberry','Melon','Rainbow Candy','Mango','Raspberry','Orange','Lemon-Lime','Blue Raspberry'];
+const flavorOptions = ['Cherry','Mango','Strawberry','Piña Colada','Margarita','Melon','Blackberry','Orange','Grape','Pineapple','Lemonade','Watermelon'];
 const addons = [
   {id:'fiber',name:'Add Fiber',price:3.50},
   {id:'collagen',name:'Add Collagen',price:3.50},
@@ -49,24 +50,34 @@ function itemKey(ci){return `${ci.id}|${ci.size||'regular'}|${(ci.flavors||[]).j
 
 function renderMenu(filter='all'){
   const items = filter==='all' ? menu : menu.filter(x=>x.type===filter);
-  $('#menuGrid').innerHTML = items.map(x=>`<article class="menu-card ${x.custom?'featured-card':''}">${x.image?`<div class="drink-art photo"><img src="${x.image}" alt="${x.name}"></div>`:`<div class="drink-art custom-art"><span>✨</span><strong>Build Your Own</strong></div>`}<div class="menu-body"><span class="eyebrow">${x.custom?'Make it yours':'Loaded Tea'}</span><h3>${x.name}</h3><p>${x.desc}</p><div class="size-preview"><span><small>Regular</small><b>32 oz • $10</b></span><span><small>Jumbo</small><b>40 oz • $12</b></span></div><div class="mini-caffeine">⚡ Contains caffeine</div><div class="price-row"><span class="price">From $10</span><button class="add-btn" data-id="${x.id}">Customize</button></div></div></article>`).join('');
+  $('#menuGrid').innerHTML = items.map(x=>`<article class="menu-card ${x.custom?'featured-card':''}">${x.image?`<div class="drink-art photo"><img src="${x.image}" alt="${x.name}"></div>`:x.coffee?`<div class="drink-art custom-art coffee-art"><span>☕</span><strong>Iced Protein Coffee</strong></div>`:`<div class="drink-art custom-art"><span>✨</span><strong>Build Your Own</strong></div>`}<div class="menu-body"><span class="eyebrow">${x.coffee?'Iced Coffee':x.custom?'Make it yours':'Loaded Tea'}</span><h3>${x.name}</h3><p>${x.desc}</p><div class="size-preview"><span><small>Regular</small><b>32 oz • $10</b></span><span><small>Jumbo</small><b>40 oz • $12</b></span></div>${x.coffee?'':`<div class="mini-caffeine">⚡ Contains caffeine</div>`}<div class="price-row"><span class="price">From $10</span><button class="add-btn" data-id="${x.id}">Customize</button></div></div></article>`).join('');
   $$('.add-btn').forEach(b=>b.onclick=()=>startAdd(b.dataset.id));
 }
 
 function startAdd(id){
   const item=menu.find(x=>x.id===id); if(!item)return;
-  if(item.type==='coffee'){ addSimpleToCart(item); return; }
   customizing={id:item.id,size:'regular',flavors:[...(item.flavors||[])],addons:[]};
-  $('#customizeType').textContent=item.custom?'Build Your Own':'Loaded Tea';
+  if(item.coffee){ customizing.flavors=[]; customizing.addons=[]; }
+  $('#customizeType').textContent=item.coffee?'Iced Protein Coffee':item.custom?'Build Your Own':'Loaded Tea';
   $('#customizeName').textContent=item.name;
-  $('#customizeDesc').textContent=item.custom?'Choose any 2 flavors included. Add more flavors for $1 each.':item.desc;
-  $('#flavorHelp').textContent=item.custom?'Choose up to 2 included flavors. Each additional flavor is +$1.':'Your recipe flavors are preselected. Add or change flavors; more than 2 total are +$1 each.';
+  $('#customizeDesc').textContent=item.coffee?'Choose one coffee flavor. Whipped cream is +$1.':item.custom?'Choose any 2 flavors included. Add more flavors for $1 each.':item.desc;
+  $('#flavorHelp').textContent=item.coffee?'Choose one: Caramel, Mocha, or House Blend.':item.custom?'Choose up to 2 included flavors. Each additional flavor is +$1.':'Your recipe flavors are preselected. Add or change flavors; more than 2 total are +$1 each.';
   renderCustomizer();
   $$('#sizeChoices .size-choice').forEach(b=>b.classList.toggle('active',b.dataset.size==='regular'));
   $('#customizeDialog').showModal();
 }
 
 function renderCustomizer(){
+  const item=menu.find(x=>x.id===customizing.id);
+  if(item?.coffee){
+    const coffeeFlavors=['Caramel','Mocha','House Blend'];
+    $('#flavorChoices').innerHTML=coffeeFlavors.map(f=>`<label class="choice-chip ${customizing.flavors[0]===f?'selected':''}"><input type="radio" name="coffeeFlavor" value="${f}" ${customizing.flavors[0]===f?'checked':''}><span>${f}</span></label>`).join('');
+    $$('#flavorChoices input').forEach(i=>i.onchange=()=>{customizing.flavors=[i.value];renderCustomizer();});
+    const checked=customizing.addons.some(x=>x.id==='whipped-cream');
+    $('#addonChoices').innerHTML=`<label class="addon-row ${checked?'selected':''}"><input type="checkbox" value="whipped-cream" ${checked?'checked':''}><span><strong>Add Whipped Cream</strong></span><b>+$1.00</b></label>`;
+    $('#addonChoices input').forEach(i=>i.onchange=()=>{customizing.addons=i.checked?[{id:'whipped-cream',name:'Add Whipped Cream',price:1}]:[];renderCustomizer();});
+    updateCustomizerPrice(); return;
+  }
   const selected=new Set(customizing.flavors);
   $('#flavorChoices').innerHTML=flavorOptions.map(f=>`<label class="choice-chip ${selected.has(f)?'selected':''}"><input type="checkbox" value="${f}" ${selected.has(f)?'checked':''}><span>${f}</span></label>`).join('');
   $$('#flavorChoices input').forEach(i=>i.onchange=()=>{ if(i.checked && !customizing.flavors.includes(i.value)) customizing.flavors.push(i.value); if(!i.checked) customizing.flavors=customizing.flavors.filter(f=>f!==i.value); renderCustomizer(); });
@@ -75,12 +86,14 @@ function renderCustomizer(){
   updateCustomizerPrice();
 }
 
-function currentCustomPrice(){const flavorExtras=Math.max(0,customizing.flavors.length-2);return baseSizePrice(customizing.size)+flavorExtras+customizing.addons.reduce((s,a)=>s+a.price,0)}
+function currentCustomPrice(){const item=menu.find(x=>x.id===customizing.id);const flavorExtras=item?.coffee?0:Math.max(0,customizing.flavors.length-2);return baseSizePrice(customizing.size)+flavorExtras+customizing.addons.reduce((s,a)=>s+a.price,0)}
 function updateCustomizerPrice(){
-  const flavorExtras=Math.max(0,customizing.flavors.length-2);
-  $('#flavorCharge').textContent=flavorExtras?`+${money(flavorExtras)}`:'2 included';
+  const item=menu.find(x=>x.id===customizing.id);
+  const flavorExtras=item?.coffee?0:Math.max(0,customizing.flavors.length-2);
+  $('#flavorCharge').textContent=item?.coffee?'Choose 1':flavorExtras?`+${money(flavorExtras)}`:'2 included';
   $('#customizeTotal').textContent=money(currentCustomPrice());
   const extra=customizing.addons.some(a=>a.id==='liftoff');
+  if(item?.coffee){ $('#caffeineNotice').classList.remove('strong'); $('#caffeineNotice').querySelector('span').textContent='Choose your coffee flavor and optional whipped cream.'; return; }
   $('#caffeineNotice').classList.toggle('strong',extra);
   $('#caffeineNotice').querySelector('span').textContent=extra?'This drink includes Extra Liftoff and therefore additional caffeine.':'Loaded teas contain caffeine. Extra Liftoff adds additional caffeine.';
 }
@@ -88,6 +101,7 @@ function updateCustomizerPrice(){
 function addCustomized(){
   const item=menu.find(x=>x.id===customizing.id);
   if(item.custom && customizing.flavors.length===0){alert('Choose at least one flavor for your custom tea.');return;}
+  if(item.coffee && customizing.flavors.length!==1){alert('Choose Caramel, Mocha, or House Blend.');return;}
   const ci={id:item.id,qty:1,size:customizing.size,flavors:[...customizing.flavors],addons:customizing.addons.map(a=>({id:a.id,name:a.name,price:a.price})),unitPrice:currentCustomPrice()};
   const key=itemKey(ci), found=cart.find(x=>itemKey(x)===key); if(found)found.qty++; else cart.push(ci);
   saveCart(); $('#customizeDialog').close(); showAddedToast();

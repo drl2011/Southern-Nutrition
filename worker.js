@@ -1,12 +1,13 @@
 const MENU = {
   'build-your-own': { name: 'Build Your Own Loaded Tea', tea: true },
   'hot-mess': { name: 'Hot Mess', tea: true },
-  'purple-paradise': { name: 'Purple Paradise', tea: true },
-  'peach-perfect': { name: 'Peach Perfect', tea: true },
-  'blueberry-bliss': { name: 'Blueberry Bliss', tea: true }
+  'southern-paradise': { name: 'Southern Paradise', tea: true },
+  'cherry-bombshell': { name: 'Cherry Bombshell', tea: true },
+  'brb': { name: 'BRB — Back Road Breeze', tea: true },
+  'iced-protein-coffee': { name: 'Iced Protein Coffee', coffee: true }
 };
-const ADDONS = { fiber:350, collagen:350, aloe:100, liftoff:350 };
-const ALLOWED_FLAVORS = new Set(['Strawberry','Watermelon','Tropical Fruit','Grape','Peach','Pineapple','Blueberry','Lemon','Lavender','Cherry','Piña Colada','Margarita','Blackberry','Melon','Rainbow Candy','Mango','Raspberry','Orange','Lemon-Lime','Blue Raspberry']);
+const ADDONS = { fiber:350, collagen:350, aloe:100, liftoff:350, 'whipped-cream':100 };
+const ALLOWED_FLAVORS = new Set(['Cherry','Mango','Strawberry','Piña Colada','Margarita','Melon','Blackberry','Orange','Grape','Pineapple','Lemonade','Watermelon']);
 const SESSION_COOKIE = 'sn_session';
 const SESSION_DAYS = 30;
 const json=(data,status=200,headers={})=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','Cache-Control':'no-store',...headers}});
@@ -26,6 +27,13 @@ function calculateOrder(cart, requestedTipCents){
       const addonIds=Array.isArray(line.addons)?[...new Set(line.addons.map(a=>a?.id).filter(id=>ADDONS[id]))]:[];
       for(const id of addonIds) unit+=ADDONS[id];
       if(addonIds.length) details.push(addonIds.join(', '));
+    }
+    if(product.coffee){
+      const flavors=Array.isArray(line.flavors)?line.flavors.filter(f=>['Caramel','Mocha','House Blend'].includes(f)):[];
+      if(flavors.length!==1) throw new Error('Choose one coffee flavor.');
+      details.push(flavors[0]);
+      const whipped=Array.isArray(line.addons)&&line.addons.some(a=>a?.id==='whipped-cream');
+      if(whipped){unit+=100;details.push('Whipped Cream');}
     }
     rawAmount+=unit*qty; drinkCount+=qty;
     items.push(`${qty}x ${product.name}${details.length?' ('+details.join(' / ')+')':''}`);
