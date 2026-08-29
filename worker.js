@@ -120,6 +120,78 @@ async function ensureSquareCustomer(env,{name,phone,email}){
   const data=await squareRequest(env,'/v2/customers',{method:'POST',body:JSON.stringify(body)});
   return data.customer||null;
 }
+
+async function ensureAddressSchema(env){
+  if(!env.DB) return false;
+  const additions=[
+    ['address_street',`ALTER TABLE users ADD COLUMN address_street TEXT`],
+    ['address_unit',`ALTER TABLE users ADD COLUMN address_unit TEXT`],
+    ['address_city',`ALTER TABLE users ADD COLUMN address_city TEXT`],
+    ['address_state',`ALTER TABLE users ADD COLUMN address_state TEXT`],
+    ['address_zip',`ALTER TABLE users ADD COLUMN address_zip TEXT`],
+    ['address_workplace',`ALTER TABLE users ADD COLUMN address_workplace TEXT`],
+    ['address_instructions',`ALTER TABLE users ADD COLUMN address_instructions TEXT`]
+  ];
+  for(const [column,sql] of additions){
+    try{await env.DB.prepare(`SELECT ${column} FROM users LIMIT 1`).first();}
+    catch(e){
+      try{await env.DB.prepare(sql).run();}
+      catch(alterError){
+        if(!/duplicate column|already exists/i.test(String(alterError?.message||alterError))) throw alterError;
+      }
+    }
+  }
+  return true;
+}
+function normalizeAddress(body={}){
+  const street=String(body.street||'').trim().slice(0,120);
+  const unit=String(body.unit||'').trim().slice(0,80);
+  const city=String(body.city||'').trim().slice(0,80);
+  const state=String(body.state||'').trim().toUpperCase().replace(/[^A-Z]/g,'').slice(0,2);
+  const zip=String(body.zip||'').trim().slice(0,10);
+  const workplace=String(body.workplace||'').trim().slice(0,120);
+  const instructions=String(body.instructions||'').trim().slice(0,500);
+  return {street,unit,city,state,zip,workplace,instructions};
+}
+function validSavedAddress(a){
+  return Boolean(a.street && a.city && /^[A-Z]{2}$/.test(a.state) && /^\d{5}(?:-\d{4})?$/.test(a.zip));
+}
+async function getSavedAddress(env,userId){
+  await ensureAddressSchema(env);
+  const row=await env.DB.prepare(`SELECT address_street,address_unit,address_city,address_state,address_zip,address_workplace,address_instructions FROM users WHERE id=? LIMIT 1`).bind(userId).first();
+  if(!row||!row.address_street) return null;
+  return {
+    street:row.address_street||'',
+    unit:row.address_unit||'',
+    city:row.address_city||'',
+    state:row.address_state||'',
+    zip:row.address_zip||'',
+    workplace:row.address_workplace||'',
+    instructions:row.address_instructions||''
+  };
+}
+async function savedAddress(request,env){
+  if(!env.DB) return json({error:'Customer database is not connected.'},503);
+  const user=await getSessionUser(request,env);
+  if(!user) return json({error:'Log in to save a delivery address.'},401);
+  try{
+    if(request.method==='GET'){
+      return json({address:await getSavedAddress(env,user.id)});
+    }
+    const body=normalizeAddress(await request.json());
+    if(!validSavedAddress(body)) return json({error:'Enter a valid street, city, 2-letter state, and ZIP code.'},400);
+    await ensureAddressSchema(env);
+    await env.DB.prepare(`UPDATE users
+      SET address_street=?,address_unit=?,address_city=?,address_state=?,address_zip=?,address_workplace=?,address_instructions=?
+      WHERE id=?`)
+      .bind(body.street,body.unit,body.city,body.state,body.zip,body.workplace,body.instructions,user.id).run();
+    return json({ok:true,address:body});
+  }catch(e){
+    console.log('saved address error',e);
+    return json({error:'Unable to save the delivery address right now.'},500);
+  }
+}
+
 async function signup(request,env){
   if(!env.DB)return json({error:'Customer database is not connected.'},503);
   try{
@@ -137,7 +209,7 @@ async function signup(request,env){
     try{squareCustomer=await ensureSquareCustomer(env,{name,phone,email});if(squareCustomer?.id)await env.DB.prepare('UPDATE users SET square_customer_id=? WHERE id=?').bind(squareCustomer.id,userId).run();}catch(e){console.log('Square customer link failed',e?.message);}
     const row=await env.DB.prepare('SELECT id,email,phone,name,square_customer_id FROM users WHERE id=?').bind(userId).first();
     const sessionId=await createSession(userId,env);
-    return json({ok:true,user:publicUser(row)},201,{'Set-Cookie':sessionCookie(sessionId)});
+    return json({ok:true,user:{...publicUser(row),address:null}},201,{'Set-Cookie':sessionCookie(sessionId)});
   }catch(e){console.log('signup error',e);return json({error:'Unable to create account right now.'},500);}
 }
 async function login(request,env){
@@ -151,7 +223,7 @@ async function login(request,env){
     if(Number(row.is_disabled)===1)return json({error:'This account has been disabled. Please contact Southern Nutrition.'},403);
     await env.DB.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(new Date().toISOString()).run();
     const sessionId=await createSession(row.id,env);
-    return json({ok:true,user:publicUser(row)},200,{'Set-Cookie':sessionCookie(sessionId)});
+    const address=await getSavedAddress(env,row.id); return json({ok:true,user:{...publicUser(row),address}},200,{'Set-Cookie':sessionCookie(sessionId)});
   }catch(e){console.log('login error',e);return json({error:'Unable to log in right now.'},500);}
 }
 async function logout(request,env){
@@ -159,7 +231,10 @@ async function logout(request,env){
   return json({ok:true},200,{'Set-Cookie':clearSessionCookie()});
 }
 async function me(request,env){
-  const row=await getSessionUser(request,env); return json({authenticated:Boolean(row),user:row?publicUser(row):null});
+  const row=await getSessionUser(request,env);
+  if(!row) return json({authenticated:false,user:null});
+  const address=await getSavedAddress(env,row.id);
+  return json({authenticated:true,user:{...publicUser(row),address}});
 }
 
 async function ensureAdminSchema(env){
@@ -273,8 +348,21 @@ async function adminUpdateUser(request,env,userId){
   }catch(e){console.log('admin update user error',e);return json({error:'Unable to update this customer account right now.'},500);}
 }
 
+function isBusinessOpenNow(){
+  const parts=new Intl.DateTimeFormat('en-US',{
+    timeZone:'America/Chicago',
+    hour:'2-digit',
+    minute:'2-digit',
+    hourCycle:'h23'
+  }).formatToParts(new Date());
+  const values=Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  const hour=Number(values.hour);
+  return hour>=6 && hour<18;
+}
+
 async function payment(request, env){
   try{
+    if(!isBusinessOpenNow()) return json({error:'Southern Nutrition is closed right now. Delivery orders are available every day from 6:00 AM to 6:00 PM Central.'},403);
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
     const body=await request.json(); if(!body.sourceId) return json({error:'Missing Square payment token.'},400);
     const order=calculateOrder(body.cart,body.tipCents);
@@ -304,6 +392,7 @@ export default {
     if(url.pathname==='/api/auth/login' && request.method==='POST') return login(request,env);
     if(url.pathname==='/api/auth/logout' && request.method==='POST') return logout(request,env);
     if(url.pathname==='/api/auth/me' && request.method==='GET') return me(request,env);
+    if(url.pathname==='/api/account/address' && (request.method==='GET'||request.method==='PUT')) return savedAddress(request,env);
     if(url.pathname==='/api/admin/me' && request.method==='GET') return adminMe(request,env);
     if(url.pathname==='/api/admin/users' && request.method==='GET') return adminUsers(request,env);
     if(url.pathname.startsWith('/api/admin/users/') && request.method==='PATCH') return adminUpdateUser(request,env,url.pathname.split('/').pop());

@@ -177,11 +177,11 @@
       <label>Email <span class="optional">(optional)</span><input id="customerEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
       <div class="checkout-contact-note">Need help? <a href="tel:+12055492444">Call (205) 549-2444</a> or <a href="sms:+12055492444">text us</a>.</div>
     </div>
-    <div id="squareStatus" class="square-status">Square Sandbox is not configured yet.</div>
+    <div id="squareStatus" class="square-status">Checking secure payment connection…</div>
     <div id="card-container"></div>
     <button class="btn primary full" id="payButton" disabled>Pay securely</button>
     <p id="paymentMessage" class="form-note" role="status"></p>
-    <p class="form-note">Sandbox mode uses test payments only. It will not charge a real card until you intentionally switch the project to Square Production.</p>
+    <p id="paymentModeNote" class="form-note">Payments are processed securely by Square.</p>
   </dialog>
 
   <dialog id="successDialog">

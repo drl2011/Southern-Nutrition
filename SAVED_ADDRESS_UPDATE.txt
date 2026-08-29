@@ -1,0 +1,15 @@
+Southern Nutrition — Saved Delivery Address Update
+
+What changed:
+- Logged-in customers now have one saved/default delivery address stored in Cloudflare D1.
+- Saved fields: street, apartment/unit, city, state, ZIP, business/workplace, delivery instructions.
+- When a logged-in customer returns on another device and signs in, the saved address auto-fills.
+- The address is automatically saved when the logged-in customer clicks Continue to secure checkout.
+- Guests still work normally; their address is not stored in D1.
+- The database columns are created automatically by the Worker the first time this feature is used.
+
+No manual SQL migration is required.
+
+Files changed:
+- worker.js
+- app.js

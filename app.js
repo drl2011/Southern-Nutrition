@@ -10,12 +10,12 @@ window.addEventListener('load', () => {
 }, { once: true });
 
 const menu = [
-  {id:'build-your-own',name:'Build Your Own Loaded Tea',type:'tea',image:'assets/build-your-own-ice.png',desc:'Create your own loaded tea. Pick 2 flavors included, then make it yours.',custom:true},
+  {id:'build-your-own',name:'Build Your Own Loaded Tea',type:'tea',image:'',desc:'Create your own loaded tea. Pick 2 flavors included, then make it yours.',custom:true},
   {id:'hot-mess',name:'Hot Mess',type:'tea',image:'assets/hot-mess.png',desc:'Strawberry • Watermelon • Chili Lime',flavors:['Strawberry','Watermelon']},
   {id:'southern-paradise',name:'Southern Paradise',type:'tea',image:'assets/southern-paradise.png',desc:'Mango • Pineapple',flavors:['Mango','Pineapple']},
   {id:'cherry-bombshell',name:'Cherry Bombshell',type:'tea',image:'assets/cherry-bombshell.png',desc:'Cherry • Orange',flavors:['Cherry','Orange']},
   {id:'brb',name:'BRB — Back Road Breeze',type:'tea',image:'assets/brb.png',desc:'Cherry • Grape',flavors:['Cherry','Grape']},
-  {id:'iced-protein-coffee',name:'Iced Protein Coffee',type:'coffee',image:'assets/iced-protein-coffee.png',desc:'Protein coffee with your choice of Caramel, Mocha, or House Blend.',coffee:true}
+  {id:'iced-protein-coffee',name:'Iced Protein Coffee',type:'coffee',image:'',desc:'Protein coffee with your choice of Caramel, Mocha, or House Blend.',coffee:true}
 ];
 
 const flavorOptions = ['Cherry','Mango','Strawberry','Piña Colada','Margarita','Melon','Blackberry','Orange','Grape','Pineapple','Lemonade','Watermelon'];
@@ -31,6 +31,29 @@ function loadCart(){try{const raw=JSON.parse(localStorage.getItem(CART_KEY)||loc
 let cart = loadCart();
 let squareCard = null;
 let squareEnvironment = 'sandbox';
+
+const BUSINESS_TIME_ZONE = 'America/Chicago';
+const BUSINESS_OPEN_HOUR = 6;
+const BUSINESS_CLOSE_HOUR = 18;
+
+function businessClockParts(){
+  const parts = new Intl.DateTimeFormat('en-US',{
+    timeZone: BUSINESS_TIME_ZONE,
+    hour:'2-digit',
+    minute:'2-digit',
+    hourCycle:'h23'
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  return {hour:Number(value.hour), minute:Number(value.minute)};
+}
+function isBusinessOpenNow(){
+  const {hour}=businessClockParts();
+  return hour>=BUSINESS_OPEN_HOUR && hour<BUSINESS_CLOSE_HOUR;
+}
+function closedMessage(){
+  return 'Southern Nutrition is closed right now. Delivery orders are available every day from 6:00 AM to 6:00 PM Central.';
+}
+
 let customizing = null;
 let authMode = 'login';
 const $ = s => document.querySelector(s);
@@ -143,9 +166,50 @@ function renderAccountState(){
     $('#profileName').textContent=`Hi, ${acct.name}`;$('#profileContact').textContent=[acct.phone,acct.email].filter(Boolean).join(' • ');
     renderRewardProgress($('#profileRewardProgress'),credits);
     $('#profileRewardCaption').textContent=acct.loyaltyEnabled?(credits>=9?'Your next standard drink is FREE.':`${credits}/9 toward your free drink.`):(acct.squareLinked?'Square customer connected. Loyalty tracking will appear here when Square Loyalty is enabled.':'Account saved. We still need to link this profile to Square.');
-    $('#customerName').value=acct.name;$('#customerPhone').value=acct.phone;$('#customerEmail').value=acct.email||'';
+    $('#customerName').value=acct.name;$('#customerPhone').value=acct.phone;$('#customerEmail').value=acct.email||'';if(acct.address&&!$('#deliveryStreet').value.trim())fillSavedAddress(acct.address);
   }
 }
+
+function getDeliveryAddressFromForm(){
+  return {
+    street:$('#deliveryStreet').value.trim(),
+    unit:$('#deliveryUnit').value.trim(),
+    city:$('#deliveryCity').value.trim(),
+    state:$('#deliveryState').value.trim().toUpperCase(),
+    zip:$('#deliveryZip').value.trim(),
+    workplace:$('#workplaceName').value.trim(),
+    instructions:$('#deliveryInstructions').value.trim()
+  };
+}
+function fillSavedAddress(address){
+  if(!address) return;
+  $('#deliveryStreet').value=address.street||'';
+  $('#deliveryUnit').value=address.unit||'';
+  $('#deliveryCity').value=address.city||'';
+  $('#deliveryState').value=address.state||'AL';
+  $('#deliveryZip').value=address.zip||'';
+  $('#workplaceName').value=address.workplace||'';
+  $('#deliveryInstructions').value=address.instructions||'';
+}
+async function saveCurrentAddress(){
+  if(!currentUser) return true;
+  try{
+    const r=await fetch('/api/account/address',{
+      method:'PUT',
+      headers:{'content-type':'application/json'},
+      credentials:'same-origin',
+      body:JSON.stringify(getDeliveryAddressFromForm())
+    });
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error||'Unable to save delivery address.');
+    currentUser.address=data.address;
+    return true;
+  }catch(e){
+    console.warn('Address save failed',e);
+    return false;
+  }
+}
+
 async function refreshSession(){
   try{const r=await fetch('/api/auth/me',{cache:'no-store',credentials:'same-origin'});const data=await r.json();currentUser=data.authenticated?data.user:null;}catch{currentUser=null;}renderAccountState();
 }
@@ -169,7 +233,33 @@ $('#accountForm').onsubmit=async e=>{
 async function logout(){try{await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});}finally{currentUser=null;renderAccountState();$('#accountDialog').close();}}
 
 async function initSquare(){
-  try {const r=await fetch('/api/config',{cache:'no-store'}); const cfg=await r.json();if(!cfg.configured){$('#squareStatus').textContent='Square Sandbox is ready in the site, but your Sandbox IDs still need to be added in Cloudflare.';return;}squareEnvironment=cfg.environment;if(cfg.environment==='production'&&location.hostname!=='localhost'){const old=[...document.scripts].find(s=>s.src.includes('squarecdn.com/v1/square.js'));if(old?.src.includes('sandbox.'))await loadScript('https://web.squarecdn.com/v1/square.js');}if(!window.Square)throw new Error('Square Web Payments SDK did not load.');const payments=window.Square.payments(cfg.applicationId,cfg.locationId);squareCard=await payments.card();await squareCard.attach('#card-container');$('#payButton').disabled=false;$('#squareStatus').textContent=cfg.environment==='production'?'Secure Square checkout':'Square Sandbox connected — test payments only';}catch(e){$('#squareStatus').textContent=`Square setup error: ${e.message}`;}
+  try {
+    const r=await fetch('/api/config',{cache:'no-store'});
+    const cfg=await r.json();
+    squareEnvironment=cfg.environment;
+    const modeNote=$('#paymentModeNote');
+    if(modeNote) modeNote.textContent=cfg.environment==='production'
+      ? 'Payments are processed securely by Square.'
+      : 'Test payment mode is currently enabled.';
+    if(!cfg.configured){
+      $('#squareStatus').textContent='Square payment connection still needs to be configured in Cloudflare.';
+      return;
+    }
+    if(cfg.environment==='production'&&location.hostname!=='localhost'){
+      const old=[...document.scripts].find(s=>s.src.includes('squarecdn.com/v1/square.js'));
+      if(old?.src.includes('sandbox.')) await loadScript('https://web.squarecdn.com/v1/square.js');
+    }
+    if(!window.Square) throw new Error('Square Web Payments SDK did not load.');
+    const payments=window.Square.payments(cfg.applicationId,cfg.locationId);
+    squareCard=await payments.card();
+    await squareCard.attach('#card-container');
+    $('#payButton').disabled=false;
+    $('#squareStatus').textContent=cfg.environment==='production'
+      ? 'Secure Square checkout'
+      : 'Square test checkout connected';
+  }catch(e){
+    $('#squareStatus').textContent=`Square setup error: ${e.message}`;
+  }
 }
 function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
 function checkoutSummary(){
@@ -202,9 +292,9 @@ $$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return
 $('#mobileCartBar').onclick=openCart;
 $('#accountBtn').onclick=()=>openAccount();$('#joinRewardsBtn').onclick=()=>openAccount('signup');$('#rewardLoginBtn').onclick=()=>openAccount('login');$('#accountDetailsBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
 
-$('#placeOrder').onclick=()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}selectedTipCents=0;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();};
+$('#placeOrder').onclick=async()=>{if(!isBusinessOpenNow())return alert(closedMessage());if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}if(currentUser)await saveCurrentAddress();selectedTipCents=0;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();};
 $('#checkoutClose').onclick=()=>$('#checkoutDialog').close();
-$('#payButton').onclick=async()=>{const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:{street:$('#deliveryStreet').value.trim(),unit:$('#deliveryUnit').value.trim(),city:$('#deliveryCity').value.trim(),state:$('#deliveryState').value.trim().toUpperCase(),zip:$('#deliveryZip').value.trim(),workplace:$('#workplaceName').value.trim(),instructions:$('#deliveryInstructions').value.trim()},requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Payment failed.');cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
+$('#payButton').onclick=async()=>{if(!isBusinessOpenNow()){$('#paymentMessage').textContent=closedMessage();return;}const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Payment failed.');cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
 renderMenu();renderCart();renderAccountState();bindTipControls();refreshSession();initSquare();
