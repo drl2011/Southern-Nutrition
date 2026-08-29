@@ -1,0 +1,24 @@
+Southern Nutrition — Custom Cup Patch
+
+This patch does NOT redesign the site.
+
+It adds:
+- A clear Southern Nutrition cup full of ice inside Build Your Own.
+- The exact custom flavor list from your menu sheet:
+  Cherry, Mango, Strawberry, Pina Colada, Margarita, Melon,
+  Blackberry, Orange, Grape, Pineapple, Lemonaid, Watermelon.
+- First flavor fills the cup with that flavor color.
+- Additional selected flavors blend the cup into a new color.
+- Removing a flavor recalculates the color immediately.
+- The cup uses the real Southern Nutrition logo cropped from the existing Hot Mess asset.
+
+Files to add to the existing website:
+1. custom-cup.js
+2. assets/custom-cup-logo.png
+
+Then add this ONE line immediately after the existing:
+<script src="app.js"></script>
+
+<script src="custom-cup.js"></script>
+
+Nothing else on the site needs to change.
