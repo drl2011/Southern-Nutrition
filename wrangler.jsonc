@@ -14,5 +14,21 @@
       "database_name": "southern-nutrition-db",
       "database_id": "775f9d64-1acf-411d-b32e-1361ff0550d6"
     }
-  ]
+  ],
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "redact_query_string": false,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  }
 }
