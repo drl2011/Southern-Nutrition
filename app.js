@@ -93,8 +93,9 @@ async function loadDeliverySlots(){
     if(!r.ok) throw new Error(data.error||'Unable to load delivery windows.');
     const available=(data.slots||[]).filter(s=>s.available);
     select.innerHTML=available.length
-      ? '<option value="">Choose a delivery window</option>'+available.map(s=>`<option value="${s.start}">${s.label}</option>`).join('')
+      ? available.map((s,i)=>`<option value="${s.start}"${i===0?' selected':''}>${i===0?'Next available — ':''}${s.label}</option>`).join('')
       : '<option value="">No delivery windows available</option>';
+    $('#orderTime').value=available.length?available[0].start:'';
   }catch(e){
     select.innerHTML='<option value="">Unable to load delivery windows</option>';
   }finally{
