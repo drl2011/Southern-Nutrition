@@ -348,23 +348,45 @@ async function adminUpdateUser(request,env,userId){
   }catch(e){console.log('admin update user error',e);return json({error:'Unable to update this customer account right now.'},500);}
 }
 
-function isBusinessOpenNow(){
+function businessNowParts(){
   const parts=new Intl.DateTimeFormat('en-US',{
     timeZone:'America/Chicago',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
     hour:'2-digit',
     minute:'2-digit',
     hourCycle:'h23'
   }).formatToParts(new Date());
-  const values=Object.fromEntries(parts.map(p=>[p.type,p.value]));
-  const hour=Number(values.hour);
-  return hour>=6 && hour<18;
+  const v=Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  return {year:+v.year,month:+v.month,day:+v.day,hour:+v.hour,minute:+v.minute};
+}
+function parseRequestedTime(value){
+  const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if(!m) return null;
+  return {year:+m[1],month:+m[2],day:+m[3],hour:+m[4],minute:+m[5]};
+}
+function minuteStamp(p){return Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute)/60000;}
+function validateRequestedTime(value){
+  const requested=parseRequestedTime(value);
+  if(!requested) return 'Choose a requested delivery date and time.';
+  const check=new Date(Date.UTC(requested.year,requested.month-1,requested.day,requested.hour,requested.minute));
+  if(check.getUTCFullYear()!==requested.year||check.getUTCMonth()+1!==requested.month||check.getUTCDate()!==requested.day)
+    return 'Choose a valid delivery date and time.';
+  if(minuteStamp(requested)<=minuteStamp(businessNowParts()))
+    return 'Choose a delivery time in the future.';
+  const minutes=requested.hour*60+requested.minute;
+  if(minutes<6*60||minutes>=18*60)
+    return 'Requested delivery times must be between 6:00 AM and 6:00 PM Central.';
+  return '';
 }
 
 async function payment(request, env){
   try{
-    if(!isBusinessOpenNow()) return json({error:'Southern Nutrition is closed right now. Delivery orders are available every day from 6:00 AM to 6:00 PM Central.'},403);
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
     const body=await request.json(); if(!body.sourceId) return json({error:'Missing Square payment token.'},400);
+    const requestedTimeError=validateRequestedTime(body.requestedTime);
+    if(requestedTimeError) return json({error:requestedTimeError},400);
     const order=calculateOrder(body.cart,body.tipCents);
     const fulfillment='DELIVERY';
     const customerName=String(body.customer?.name||'').trim().slice(0,100), customerPhone=String(body.customer?.phone||'').trim().slice(0,30);

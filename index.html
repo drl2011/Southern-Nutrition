@@ -100,7 +100,7 @@
       <div class="address-row"><label>City<input id="deliveryCity" autocomplete="address-level2" required /></label><label>State<input id="deliveryState" autocomplete="address-level1" value="AL" maxlength="2" required /></label><label>ZIP<input id="deliveryZip" autocomplete="postal-code" inputmode="numeric" required /></label></div>
       <label>Business / Workplace <span class="optional">(optional)</span><input id="workplaceName" placeholder="Office, plant, salon, etc." /></label>
       <label>Delivery instructions <span class="optional">(optional)</span><textarea id="deliveryInstructions" placeholder="Front desk, gate instructions, where to meet you, etc."></textarea></label>
-      <label>Requested time<input id="orderTime" type="datetime-local" /></label>
+      <label>Requested delivery time<input id="orderTime" type="datetime-local" required /><span class="form-note">Orders may be placed anytime. Choose a future delivery time between 6:00 AM and 6:00 PM Central.</span></label>
       <label>Notes<textarea id="orderNotes" placeholder="Flavor notes, workplace name, etc."></textarea></label>
       <button class="btn primary full" id="placeOrder">Continue to secure checkout</button>
       <p class="form-note">Payments are securely processed by Square.</p>

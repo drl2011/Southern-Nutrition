@@ -1,0 +1,13 @@
+Southern Nutrition — Future Order Scheduling
+
+Customers may now place and pay for orders at any time of day.
+
+Rules:
+- Requested delivery time is required.
+- Delivery time must be in the future.
+- Delivery time must be between 6:00 AM and 6:00 PM Central.
+- Example: an order placed at 9:00 PM tonight for 10:00 AM tomorrow is accepted.
+- The browser validates the requested time before checkout.
+- The Worker validates it again before Square payment, so the rule cannot be bypassed from the browser.
+
+This update keeps the saved-address feature intact.

@@ -36,22 +36,57 @@ const BUSINESS_TIME_ZONE = 'America/Chicago';
 const BUSINESS_OPEN_HOUR = 6;
 const BUSINESS_CLOSE_HOUR = 18;
 
-function businessClockParts(){
+function businessNowParts(){
   const parts = new Intl.DateTimeFormat('en-US',{
     timeZone: BUSINESS_TIME_ZONE,
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
     hour:'2-digit',
     minute:'2-digit',
     hourCycle:'h23'
   }).formatToParts(new Date());
-  const value = Object.fromEntries(parts.map(p=>[p.type,p.value]));
-  return {hour:Number(value.hour), minute:Number(value.minute)};
+  const v = Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  return {
+    year:Number(v.year), month:Number(v.month), day:Number(v.day),
+    hour:Number(v.hour), minute:Number(v.minute)
+  };
 }
-function isBusinessOpenNow(){
-  const {hour}=businessClockParts();
-  return hour>=BUSINESS_OPEN_HOUR && hour<BUSINESS_CLOSE_HOUR;
+function parseRequestedTime(value){
+  const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if(!m) return null;
+  return {year:+m[1],month:+m[2],day:+m[3],hour:+m[4],minute:+m[5]};
 }
-function closedMessage(){
-  return 'Southern Nutrition is closed right now. Delivery orders are available every day from 6:00 AM to 6:00 PM Central.';
+function minuteStamp(p){
+  return Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute)/60000;
+}
+function validateRequestedTime(value){
+  const requested=parseRequestedTime(value);
+  if(!requested) return 'Choose a requested delivery date and time.';
+  const now=businessNowParts();
+
+  // Reject impossible dates such as February 31.
+  const check=new Date(Date.UTC(requested.year,requested.month-1,requested.day,requested.hour,requested.minute));
+  if(check.getUTCFullYear()!==requested.year || check.getUTCMonth()+1!==requested.month || check.getUTCDate()!==requested.day)
+    return 'Choose a valid delivery date and time.';
+
+  if(minuteStamp(requested)<=minuteStamp(now))
+    return 'Choose a delivery time in the future.';
+
+  const minutes=requested.hour*60+requested.minute;
+  const open=BUSINESS_OPEN_HOUR*60;
+  const close=BUSINESS_CLOSE_HOUR*60;
+  if(minutes<open || minutes>=close)
+    return 'Requested delivery times must be between 6:00 AM and 6:00 PM Central.';
+
+  return '';
+}
+function updateRequestedTimeMinimum(){
+  const input=document.querySelector('#orderTime');
+  if(!input) return;
+  const n=businessNowParts();
+  const pad=x=>String(x).padStart(2,'0');
+  input.min=`${n.year}-${pad(n.month)}-${pad(n.day)}T${pad(n.hour)}:${pad(n.minute)}`;
 }
 
 let customizing = null;
@@ -292,12 +327,12 @@ $$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return
 $('#mobileCartBar').onclick=openCart;
 $('#accountBtn').onclick=()=>openAccount();$('#joinRewardsBtn').onclick=()=>openAccount('signup');$('#rewardLoginBtn').onclick=()=>openAccount('login');$('#accountDetailsBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
 
-$('#placeOrder').onclick=async()=>{if(!isBusinessOpenNow())return alert(closedMessage());if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}if(currentUser)await saveCurrentAddress();selectedTipCents=0;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();};
+$('#placeOrder').onclick=async()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}const timeError=validateRequestedTime($('#orderTime').value);if(timeError)return alert(timeError);if(currentUser)await saveCurrentAddress();selectedTipCents=0;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();};
 $('#checkoutClose').onclick=()=>$('#checkoutDialog').close();
-$('#payButton').onclick=async()=>{if(!isBusinessOpenNow()){$('#paymentMessage').textContent=closedMessage();return;}const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Payment failed.');cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
+$('#payButton').onclick=async()=>{const timeError=validateRequestedTime($('#orderTime').value);if(timeError){$('#paymentMessage').textContent=timeError;return;}const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Payment failed.');cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
-renderMenu();renderCart();renderAccountState();bindTipControls();refreshSession();initSquare();
+renderMenu();renderCart();renderAccountState();bindTipControls();updateRequestedTimeMinimum();refreshSession();initSquare();
 
 // V13: Mobile autofill/keyboard focus correction inside the cart drawer.
 // Some mobile browsers scroll the next autofilled field underneath the keyboard.
