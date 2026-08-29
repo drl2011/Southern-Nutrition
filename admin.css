@@ -73,3 +73,6 @@
 .admin-address-box small{display:block;color:var(--admin-muted);margin-top:7px}
 .admin-address-instructions{display:block;color:var(--admin-muted);margin-top:4px}
 @media(max-width:760px){.admin-address-line{align-items:flex-start}.admin-address-line span:last-child{max-width:68%}}
+
+/* Keep customer edit controls visible on admin dashboard. */
+.admin-edit-button{display:inline-flex!important;visibility:visible!important;opacity:1!important;align-items:center;justify-content:center;cursor:pointer}

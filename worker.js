@@ -391,12 +391,31 @@ function validateRequestedTime(value){
 async function ensureDeliverySlotSchema(env){
   if(!env.DB) return false;
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS delivery_slots (
-    slot_start TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slot_start TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'booked',
     user_id INTEGER,
     payment_id TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
+  const info=await env.DB.prepare(`PRAGMA table_info(delivery_slots)`).all();
+  const columns=info.results||[];
+  const slotStart=columns.find(c=>c.name==='slot_start');
+  if(slotStart?.pk){
+    await env.DB.prepare(`ALTER TABLE delivery_slots RENAME TO delivery_slots_old`).run();
+    await env.DB.prepare(`CREATE TABLE delivery_slots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slot_start TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'booked',
+      user_id INTEGER,
+      payment_id TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`).run();
+    await env.DB.prepare(`INSERT INTO delivery_slots(slot_start,status,user_id,payment_id,created_at)
+      SELECT slot_start,status,user_id,payment_id,created_at FROM delivery_slots_old`).run();
+    await env.DB.prepare(`DROP TABLE delivery_slots_old`).run();
+  }
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_delivery_slots_start_status ON delivery_slots(slot_start,status)`).run();
   return true;
 }
 function validDeliveryDate(value){
@@ -423,15 +442,15 @@ async function deliverySlots(request,env){
     if(Date.UTC(d.year,d.month-1,d.day)<Date.UTC(now.year,now.month-1,now.day))
       return json({date,slots:[]});
     const rows=await env.DB.prepare(
-      `SELECT slot_start FROM delivery_slots WHERE slot_start LIKE ? AND status='booked'`
+      `SELECT slot_start, COUNT(*) AS booked_count FROM delivery_slots WHERE slot_start LIKE ? AND status='booked' GROUP BY slot_start`
     ).bind(`${date}T%`).all();
-    const taken=new Set((rows.results||[]).map(r=>r.slot_start));
+    const bookedCounts=new Map((rows.results||[]).map(r=>[r.slot_start,Number(r.booked_count||0)]));
     const slots=[];
     for(let mins=6*60;mins<18*60;mins+=30){
       const hour=Math.floor(mins/60),minute=mins%60;
       const start=`${date}T${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
       const future=minuteStamp({year:d.year,month:d.month,day:d.day,hour,minute})>minuteStamp(now);
-      slots.push({start,label:deliverySlotLabel(hour,minute),available:future&&!taken.has(start)});
+      slots.push({start,label:deliverySlotLabel(hour,minute),available:future&&(bookedCounts.get(start)||0)<3});
     }
     return json({date,slots});
   }catch(e){
@@ -441,19 +460,16 @@ async function deliverySlots(request,env){
 }
 async function reserveDeliverySlot(env,start,userId){
   await ensureDeliverySlotSchema(env);
-  try{
-    await env.DB.prepare(
-      `INSERT INTO delivery_slots(slot_start,status,user_id) VALUES (?,'booked',?)`
-    ).bind(start,userId||null).run();
-    return true;
-  }catch(e){
-    if(/unique|constraint/i.test(String(e?.message||e))) return false;
-    throw e;
-  }
+  const result=await env.DB.prepare(
+    `INSERT INTO delivery_slots(slot_start,status,user_id)
+     SELECT ?,'booked',?
+     WHERE (SELECT COUNT(*) FROM delivery_slots WHERE slot_start=? AND status='booked') < 3`
+  ).bind(start,userId||null,start).run();
+  return Number(result?.meta?.changes||0)===1;
 }
 async function releaseDeliverySlot(env,start){
   try{
-    await env.DB.prepare(`DELETE FROM delivery_slots WHERE slot_start=? AND payment_id IS NULL`).bind(start).run();
+    await env.DB.prepare(`DELETE FROM delivery_slots WHERE id=(SELECT id FROM delivery_slots WHERE slot_start=? AND payment_id IS NULL ORDER BY id DESC LIMIT 1)`).bind(start).run();
   }catch(e){
     console.log('delivery slot release error',e);
   }
@@ -700,7 +716,7 @@ async function payment(request, env){
     }
 
     if(env.DB&&reservedSlot){
-      await env.DB.prepare(`UPDATE delivery_slots SET payment_id=? WHERE slot_start=?`).bind(result.payment?.id||'',reservedSlot).run();
+      await env.DB.prepare(`UPDATE delivery_slots SET payment_id=? WHERE id=(SELECT id FROM delivery_slots WHERE slot_start=? AND payment_id IS NULL ORDER BY id DESC LIMIT 1)`).bind(result.payment?.id||'',reservedSlot).run();
       reservedSlot='';
     }
     const tax=Number(squareOrder?.total_tax_money?.amount||0);
