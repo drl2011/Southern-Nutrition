@@ -10,12 +10,12 @@ window.addEventListener('load', () => {
 }, { once: true });
 
 const menu = [
-  {id:'build-your-own',name:'Build Your Own Loaded Tea',type:'tea',image:'',desc:'Create your own loaded tea. Pick 2 flavors included, then make it yours.',custom:true},
+  {id:'build-your-own',name:'Build Your Own Loaded Tea',type:'tea',image:'assets/build-your-own-ice.png',desc:'Create your own loaded tea. Pick 2 flavors included, then make it yours.',custom:true},
   {id:'hot-mess',name:'Hot Mess',type:'tea',image:'assets/hot-mess.png',desc:'Strawberry • Watermelon • Chili Lime',flavors:['Strawberry','Watermelon']},
   {id:'southern-paradise',name:'Southern Paradise',type:'tea',image:'assets/southern-paradise.png',desc:'Mango • Pineapple',flavors:['Mango','Pineapple']},
   {id:'cherry-bombshell',name:'Cherry Bombshell',type:'tea',image:'assets/cherry-bombshell.png',desc:'Cherry • Orange',flavors:['Cherry','Orange']},
   {id:'brb',name:'BRB — Back Road Breeze',type:'tea',image:'assets/brb.png',desc:'Cherry • Grape',flavors:['Cherry','Grape']},
-  {id:'iced-protein-coffee',name:'Iced Protein Coffee',type:'coffee',image:'',desc:'Protein coffee with your choice of Caramel, Mocha, or House Blend.',coffee:true}
+  {id:'iced-protein-coffee',name:'Iced Protein Coffee',type:'coffee',image:'assets/iced-protein-coffee.png',desc:'Protein coffee with your choice of Caramel, Mocha, or House Blend.',coffee:true}
 ];
 
 const flavorOptions = ['Cherry','Mango','Strawberry','Piña Colada','Margarita','Melon','Blackberry','Orange','Grape','Pineapple','Lemonade','Watermelon'];
