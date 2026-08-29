@@ -218,9 +218,8 @@ function renderAccountState(){
   if(acct){
     $('#profileName').textContent=`Hi, ${acct.name}`;
     $('#profileContact').textContent=[acct.phone,acct.email].filter(Boolean).join(' • ');
-    const parts=String(acct.name||'').trim().split(/\s+/);
-    $('#customerName').value=parts.shift()||'';
-    $('#customerLastName').value=parts.join(' ');
+    $('#customerName').value=String(acct.name||'').trim();
+    $('#customerLastName').value=String(acct.lastName||'').trim();
     $('#customerPhone').value=acct.phone;$('#customerEmail').value=acct.email||'';
     if(acct.address&&!$('#deliveryStreet').value.trim())fillSavedAddress(acct.address);
   }
