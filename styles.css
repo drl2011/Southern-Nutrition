@@ -49,7 +49,7 @@
 .brand-banner-southern{display:block;font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:700;font-size:clamp(48px,7vw,86px);line-height:.9;color:#c95b67;letter-spacing:-2px}
 .brand-banner-nutrition{display:block;margin-top:12px;font-family:'Outfit',Arial,sans-serif;font-size:clamp(20px,2.8vw,34px);font-weight:700;letter-spacing:.24em;color:#2b2525}
 .drink-art.photo{height:245px;background:#fff8f6;overflow:hidden;padding:8px}
-.drink-art.photo img{width:100%;height:100%;object-fit:contain;display:block}
+.drink-art.photo img{width:100%;height:100%;object-fit:contain;object-position:center center;display:block;margin:auto}
 .drink-art.custom-art{height:245px;background:linear-gradient(145deg,#fff1f4,#fffaf6);display:flex;flex-direction:column;gap:8px;font-size:50px;color:var(--accent)}
 .drink-art.custom-art strong{font-size:18px;font-family:'Outfit',sans-serif;color:var(--navy)}
 .size-preview{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fffaf8}
