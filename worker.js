@@ -115,10 +115,10 @@ async function findSquareCustomerByPhone(env,phone){
     return data.customers?.[0]||null;
   }catch{return null;}
 }
-async function ensureSquareCustomer(env,{name,phone,email}){
+async function ensureSquareCustomer(env,{name,lastName,phone,email}){
   if(!env.SQUARE_ACCESS_TOKEN)return null;
   const existing=await findSquareCustomerByPhone(env,phone); if(existing)return existing;
-  const body={idempotency_key:crypto.randomUUID(),given_name:name,phone_number:phone}; if(email)body.email_address=email;
+  const body={idempotency_key:crypto.randomUUID(),given_name:name,family_name:lastName||undefined,phone_number:phone}; if(email)body.email_address=email;
   const data=await squareRequest(env,'/v2/customers',{method:'POST',body:JSON.stringify(body)});
   return data.customer||null;
 }
@@ -197,8 +197,9 @@ async function savedAddress(request,env){
 async function signup(request,env){
   if(!env.DB)return json({error:'Customer database is not connected.'},503);
   try{
-    const body=await request.json(); const name=String(body.name||'').trim().slice(0,80), phone=normalizePhone(body.phone), email=normalizeEmail(body.email), password=String(body.password||'');
-    if(!name)return json({error:'Enter your first name.'},400);
+    const body=await request.json(); const firstName=String(body.name||'').trim().slice(0,40), lastName=String(body.lastName||'').trim().slice(0,40), name=`${firstName} ${lastName}`.trim().slice(0,80), phone=normalizePhone(body.phone), email=normalizeEmail(body.email), password=String(body.password||'');
+    if(!firstName)return json({error:'Enter your first name.'},400);
+    if(!lastName)return json({error:'Enter your last name.'},400);
     if(!phone)return json({error:'Enter a valid 10-digit phone number.'},400);
     if(!email||!validEmail(email))return json({error:'Enter a valid email address.'},400);
     if(password.length<8)return json({error:'Password must be at least 8 characters.'},400);
@@ -208,7 +209,7 @@ async function signup(request,env){
     const inserted=await env.DB.prepare('INSERT INTO users (email,phone,name,password_hash,square_customer_id) VALUES (?,?,?,?,NULL)').bind(email,phone,name,passwordHash).run();
     const userId=inserted.meta.last_row_id;
     let squareCustomer=null;
-    try{squareCustomer=await ensureSquareCustomer(env,{name,phone,email});if(squareCustomer?.id)await env.DB.prepare('UPDATE users SET square_customer_id=? WHERE id=?').bind(squareCustomer.id,userId).run();}catch(e){console.log('Square customer link failed',e?.message);}
+    try{squareCustomer=await ensureSquareCustomer(env,{name:firstName,lastName,phone,email});if(squareCustomer?.id)await env.DB.prepare('UPDATE users SET square_customer_id=? WHERE id=?').bind(squareCustomer.id,userId).run();}catch(e){console.log('Square customer link failed',e?.message);}
     const row=await env.DB.prepare('SELECT id,email,phone,name,square_customer_id FROM users WHERE id=?').bind(userId).first();
     const sessionId=await createSession(userId,env);
     return json({ok:true,user:{...publicUser(row),address:null}},201,{'Set-Cookie':sessionCookie(sessionId)});
@@ -487,7 +488,7 @@ function squareAddress(addr){
 }
 function buildSquareOrder(order,body,customerId){
   const addr=body.deliveryAddress||{};
-  const customerName=String(body.customer?.name||'').trim().slice(0,255);
+  const customerName=`${String(body.customer?.name||'').trim()} ${String(body.customer?.lastName||'').trim()}`.trim().slice(0,255);
   const customerPhone=normalizePhone(body.customer?.phone)||String(body.customer?.phone||'').trim().slice(0,17);
   const email=normalizeEmail(body.customer?.email||'');
   const dropoff=[
@@ -578,6 +579,70 @@ async function orderPreview(request,env){
   }
 }
 
+
+function escHtml(value){
+  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function moneyText(cents){ return `$${(Number(cents||0)/100).toFixed(2)}`; }
+function deliveryWindowText(requestedTime){
+  const p=parseRequestedTime(requestedTime);
+  if(!p)return String(requestedTime||'');
+  const start=new Date(Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute));
+  const end=new Date(start.getTime()+30*60000);
+  const dateFmt=new Intl.DateTimeFormat('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'});
+  const timeFmt=new Intl.DateTimeFormat('en-US',{timeZone:'UTC',hour:'numeric',minute:'2-digit'});
+  return `${dateFmt.format(start)} • ${timeFmt.format(start)}–${timeFmt.format(end)}`;
+}
+async function sendNewOrderEmail(env,{body,order,squareOrder,payment,tax,charged}){
+  if(!env.EMAIL)return null;
+  const addr=body.deliveryAddress||{};
+  const customer=body.customer||{};
+  const window=deliveryWindowText(body.requestedTime);
+  const address=[addr.street,addr.unit,`${addr.city||''}, ${addr.state||''} ${addr.zip||''}`.trim()].filter(Boolean).join('\n');
+  const items=(order.items||[]).map(x=>`• ${x}`).join('\n');
+  const subject=`NEW SOUTHERN NUTRITION ORDER — ${window}`.slice(0,200);
+  const text=[
+    'NEW SOUTHERN NUTRITION ORDER','',
+    `Delivery: ${window}`,
+    `Customer: ${`${customer.name||''} ${customer.lastName||''}`.trim()}`,
+    `Phone: ${customer.phone||''}`,
+    customer.email?`Email: ${customer.email}`:'',
+    addr.workplace?`Workplace: ${addr.workplace}`:'',
+    '', 'DELIVERY ADDRESS', address,
+    addr.instructions?`Instructions: ${addr.instructions}`:'',
+    body.notes?`Order notes: ${body.notes}`:'',
+    '', 'ORDER', items,
+    '', `Subtotal: ${moneyText(order.subtotal)}`,
+    order.discount?`Group discount: -${moneyText(order.discount)}`:'',
+    `Sales tax: ${moneyText(tax)}`,
+    `Tip: ${moneyText(order.tipCents)}`,
+    `TOTAL: ${moneyText(charged)}`,
+    '', `Square Order: ${squareOrder?.id||''}`,
+    `Payment: ${payment?.id||''}`
+  ].filter(Boolean).join('\n');
+  const itemHtml=(order.items||[]).map(x=>`<li>${escHtml(x)}</li>`).join('');
+  const html=`<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto">
+    <h1 style="margin-bottom:6px">New Southern Nutrition Order</h1>
+    <h2 style="margin-top:0">${escHtml(window)}</h2>
+    <p><strong>${escHtml(`${customer.name||''} ${customer.lastName||''}`.trim())}</strong><br>${escHtml(customer.phone||'')}${customer.email?`<br>${escHtml(customer.email)}`:''}</p>
+    ${addr.workplace?`<p><strong>Workplace:</strong> ${escHtml(addr.workplace)}</p>`:''}
+    <h3>Delivery address</h3><p>${escHtml(address).replace(/\n/g,'<br>')}</p>
+    ${addr.instructions?`<p><strong>Instructions:</strong> ${escHtml(addr.instructions)}</p>`:''}
+    ${body.notes?`<p><strong>Order notes:</strong> ${escHtml(body.notes)}</p>`:''}
+    <h3>Order</h3><ul>${itemHtml}</ul>
+    <p>Subtotal: <strong>${moneyText(order.subtotal)}</strong><br>
+    ${order.discount?`Group discount: <strong>-${moneyText(order.discount)}</strong><br>`:''}
+    Sales tax: <strong>${moneyText(tax)}</strong><br>Tip: <strong>${moneyText(order.tipCents)}</strong><br>
+    <span style="font-size:20px">Total: <strong>${moneyText(charged)}</strong></span></p>
+    <p style="font-size:12px;color:#555">Square Order: ${escHtml(squareOrder?.id||'')}<br>Payment: ${escHtml(payment?.id||'')}</p>
+  </div>`;
+  return env.EMAIL.send({
+    to:'Ashley.lewis0311@icloud.com',
+    from:{email:'orders@getsouthernnutrition.com',name:'Southern Nutrition'},
+    subject,html,text
+  });
+}
+
 async function payment(request, env){
   let reservedSlot='',squareOrder=null;
   try{
@@ -595,9 +660,9 @@ async function payment(request, env){
     }
 
     const order=calculateOrder(body.cart,body.tipCents);
-    const customerName=String(body.customer?.name||'').trim().slice(0,100);
+    const customerName=`${String(body.customer?.name||'').trim()} ${String(body.customer?.lastName||'').trim()}`.trim().slice(0,100);
     const customerPhone=String(body.customer?.phone||'').trim().slice(0,30);
-    if(!customerName||!customerPhone) throw new Error('Name and phone are required.');
+    if(!String(body.customer?.name||'').trim()||!String(body.customer?.lastName||'').trim()||!customerPhone) throw new Error('First name, last name, and phone are required.');
 
     const addr=body.deliveryAddress||{};
     const street=String(addr.street||'').trim(),city=String(addr.city||'').trim(),state=String(addr.state||'').trim(),zip=String(addr.zip||'').trim();
@@ -640,6 +705,13 @@ async function payment(request, env){
     }
     const tax=Number(squareOrder?.total_tax_money?.amount||0);
     const charged=orderAmount+order.tipCents;
+    let orderEmailId=null;
+    try{
+      const sent=await sendNewOrderEmail(env,{body,order,squareOrder,payment:result.payment,tax,charged});
+      orderEmailId=sent?.messageId||null;
+    }catch(emailError){
+      console.error('New-order email failed',emailError?.code||'',emailError?.message||emailError);
+    }
     return json({
       ok:true,
       paymentId:result.payment?.id,
@@ -651,6 +723,7 @@ async function payment(request, env){
       tipCents:order.tipCents,
       discount:order.discount,
       status:result.payment?.status||'COMPLETED',
+      orderEmailSent:Boolean(orderEmailId),
       customerLinked:Boolean(user?.square_customer_id)
     });
   }catch(e){

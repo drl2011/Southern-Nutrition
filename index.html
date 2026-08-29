@@ -19,7 +19,7 @@
       <span><strong>Southern Nutrition</strong><small>Loaded Teas • Iced Coffee • Delivery</small></span>
     </a>
     <nav>
-      <a href="#menu">Menu</a><a href="#delivery">Delivery</a><a href="#rewards">Rewards</a>
+      <a href="#menu">Menu</a><a href="#delivery">Delivery</a>
       <button class="account-btn" id="accountBtn">Log in</button>
       <button class="cart-btn" id="cartBtn">Cart <span id="cartCount">0</span></button>
     </nav>
@@ -32,7 +32,7 @@
         <h1>Big flavor.<br><span>Delivered.</span></h1>
         <p>Loaded teas and iced coffee made fresh to order and delivered. Regular 32 oz $10 • Jumbo 40 oz $12.</p>
         <div class="hero-actions"><a class="btn primary" href="#menu">Order now</a><a class="btn ghost" href="#delivery">How delivery works</a></div>
-        <div class="trust-row"><span>⚡ Made fresh</span><span>🚗 Local delivery</span><span>⭐ Buy 9, get 10th free</span></div>
+        <div class="trust-row"><span>⚡ Made fresh</span><span>🚗 Local delivery</span></div>
       </div>
       <div class="hero-art" aria-hidden="true">
         <div class="cup tea"><span>BOOST<br>ENERGY<br>FOCUS</span></div>
@@ -40,8 +40,6 @@
         <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
       </div>
     </section>
-
-    <section class="announcement"><strong>Southern Rewards:</strong> Buy 9 paid standard drinks and get your 10th standard drink free. <a href="#rewards">See your progress →</a></section>
 
     <section class="section" id="menu">
       <div class="section-heading">
@@ -57,34 +55,12 @@
       <div class="panel dark">
         <span class="eyebrow">Delivery without the hassle</span><h2>We bring the drinks to you.</h2>
         <p>Everything is delivery. Order for yourself, your family, or the whole workplace and we’ll bring it to you. Delivery minimum and service area can be adjusted as the business grows.</p>
-        <ul class="checklist"><li>Schedule your delivery</li><li>Order for yourself or a whole workplace</li><li>Pay securely online with Square</li><li>Build rewards on repeat orders</li></ul>
+        <ul class="checklist"><li>Schedule your delivery</li><li>Order for yourself or a whole workplace</li><li>Pay securely online with Square</li></ul>
       </div>
       <div class="panel light"><span class="eyebrow">Built for group orders</span><h3>Office order? Make one stop count.</h3><p>Put multiple drinks under one delivery and make workplace delivery fast.</p><div class="mini-card"><strong>10+ Drink Savings</strong><span>Order 10 or more drinks</span><b>Save $1 on every drink</b></div></div>
     </section>
 
-    <section class="rewards section" id="rewards">
-      <div>
-        <span class="eyebrow">Southern Rewards</span><h2>Buy 9. Your 10th standard drink is on us.</h2>
-        <p>Join with your phone number, then sign in anytime to see your progress and reorder favorites.</p>
-        <div class="reward-progress" id="rewardProgress" aria-label="Rewards progress"></div>
-        <p class="reward-caption" id="rewardCaption">Join rewards to start earning.</p>
-      </div>
-      <div class="rewards-card" id="rewardCard">
-        <div id="rewardLoggedOut">
-          <h3>Join Southern Rewards</h3>
-          <p class="form-note">Create an account now. Your first paid standard drink starts your progress.</p>
-          <button class="btn primary full" id="joinRewardsBtn">Join rewards</button>
-          <button class="text-btn" id="rewardLoginBtn">Already a member? Log in</button>
-        </div>
-        <div id="rewardLoggedIn" class="hidden">
-          <span class="eyebrow">Welcome back</span><h3 id="rewardHello">Your rewards</h3>
-          <p id="rewardAccountContact" class="form-note"></p>
-          <button class="btn ghost full" id="accountDetailsBtn">View account</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="section faq"><span class="eyebrow">Good to know</span><h2>Frequently asked</h2><details><summary>When do you deliver?</summary><p>We deliver every day from 6 AM to 6 PM. Delivery zones can be adjusted as the business grows.</p></details><details><summary>Can I place a group order?</summary><p>Yes. Add multiple drinks to one cart and use one workplace or delivery address. Orders of 10 or more drinks automatically get $1 off every drink; add-ons remain regular price.</p></details><details><summary>How does the free drink work?</summary><p>Every paid standard drink earns one reward credit. After nine paid drinks, the next standard drink is free.</p></details><details><summary>How much caffeine is in a loaded tea?</summary><p>Caffeine varies by recipe and add-ons. Loaded teas contain caffeine. Selecting Extra Liftoff adds additional caffeine; check the product labeling and ask us if you need exact amounts for a specific drink.</p></details></section>
+    <section class="section faq"><span class="eyebrow">Good to know</span><h2>Frequently asked</h2><details><summary>When do you deliver?</summary><p>We deliver every day from 6 AM to 6 PM. Delivery zones can be adjusted as the business grows.</p></details><details><summary>Can I place a group order?</summary><p>Yes. Add multiple drinks to one cart and use one workplace or delivery address. Orders of 10 or more drinks automatically get $1 off every drink; add-ons remain regular price.</p></details><details><summary>How much caffeine is in a loaded tea?</summary><p>Caffeine varies by recipe and add-ons. Loaded teas contain caffeine. Selecting Extra Liftoff adds additional caffeine; check the product labeling and ask us if you need exact amounts for a specific drink.</p></details></section>
   </main>
 
   <footer><div class="brand footer-brand"><span class="brand-mark">SN</span><span><strong>Southern Nutrition</strong><small>GetSouthernNutrition.com</small></span></div><div class="footer-contact"><a href="tel:+12055492444">(205) 549-2444</a><a href="sms:+12055492444">Text us</a><a href="https://www.facebook.com/share/1E82JnCDBy/?mibextid=wwXIfr" target="_blank" rel="noopener">Facebook</a></div><p>© <span id="year"></span> Southern Nutrition. All rights reserved.</p></footer>
@@ -144,10 +120,11 @@
   <dialog id="accountDialog" class="account-dialog">
     <button class="dialog-close" id="accountClose" aria-label="Close">×</button>
     <div id="accountAuthView">
-      <span class="eyebrow">Southern Rewards</span><h2 id="accountTitle">Log in</h2>
+      <span class="eyebrow">Customer account</span><h2 id="accountTitle">Log in</h2>
       <div class="auth-tabs"><button class="auth-tab active" data-mode="login">Log in</button><button class="auth-tab" data-mode="signup">Create account</button></div>
       <form id="accountForm">
         <label id="nameField" class="hidden">First name<input id="accountName" autocomplete="given-name" placeholder="First name"></label>
+        <label id="lastNameField" class="hidden">Last name<input id="accountLastName" autocomplete="family-name" placeholder="Last name"></label>
         <label>Phone number<input id="accountPhone" autocomplete="tel" inputmode="tel" placeholder="(555) 555-5555" required></label>
         <label id="emailField" class="hidden">Email<input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
         <label>Password<input id="accountPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required></label>
@@ -158,7 +135,6 @@
     </div>
     <div id="accountProfileView" class="hidden">
       <span class="eyebrow">My account</span><h2 id="profileName">Welcome</h2><p id="profileContact" class="form-note"></p>
-      <div class="profile-card"><strong>Southern Rewards</strong><div class="reward-progress compact" id="profileRewardProgress"></div><p id="profileRewardCaption"></p></div>
       <div class="profile-card"><strong>Coming next</strong><p>Order history, saved delivery addresses, favorites, and one-tap reorder.</p></div>
       <button class="btn ghost full" id="logoutBtn">Log out</button>
     </div>
@@ -179,7 +155,8 @@
       <label class="custom-tip-label">Custom tip $<input id="customTip" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
     </div>
     <div class="checkout-fields">
-      <label>Name<input id="customerName" autocomplete="name" placeholder="Your name" required></label>
+      <label>First name<input id="customerName" autocomplete="given-name" placeholder="First name" required></label>
+      <label>Last name<input id="customerLastName" autocomplete="family-name" placeholder="Last name" required></label>
       <label>Phone<input id="customerPhone" autocomplete="tel" placeholder="(555) 555-5555" required></label>
       <label>Email <span class="optional">(optional)</span><input id="customerEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
       <div class="checkout-contact-note">Need help? <a href="tel:+12055492444">Call (205) 549-2444</a> or <a href="sms:+12055492444">text us</a>.</div>

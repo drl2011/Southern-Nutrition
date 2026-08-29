@@ -211,20 +211,17 @@ function closeCart(){$('#cartDrawer').classList.remove('open');$('#scrim').class
 let toastTimer; function showAddedToast(){const t=$('#addedToast');if(!t)return;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1800);}
 
 let currentUser = null;
-function rewardDots(credits){const earned=Math.min(9,Math.max(0,credits||0));return Array.from({length:9},(_,i)=>`<span class="reward-dot ${i<earned?'filled':''}">${i<earned?'✓':''}</span>`).join('')}
-function renderRewardProgress(el,credits){el.innerHTML=rewardDots(credits)}
 function renderAccountState(){
-  const acct=currentUser, credits=acct?.credits||0;
+  const acct=currentUser;
   $('#accountBtn').textContent=acct?`Hi, ${acct.name}`:'Log in';
-  $('#rewardLoggedOut').classList.toggle('hidden',!!acct);$('#rewardLoggedIn').classList.toggle('hidden',!acct);
-  renderRewardProgress($('#rewardProgress'),credits);
-  $('#rewardCaption').textContent=acct?(acct.loyaltyEnabled?(credits>=9?'Your next standard drink is FREE.':`${credits} of 9 paid drinks — ${9-credits} more until your free drink.`):'Your account is connected. Square Loyalty sync is the next step.'):'Join rewards to start earning.';
   if(acct){
-    $('#rewardHello').textContent=`Hi, ${acct.name}`;$('#rewardAccountContact').textContent=acct.phone;
-    $('#profileName').textContent=`Hi, ${acct.name}`;$('#profileContact').textContent=[acct.phone,acct.email].filter(Boolean).join(' • ');
-    renderRewardProgress($('#profileRewardProgress'),credits);
-    $('#profileRewardCaption').textContent=acct.loyaltyEnabled?(credits>=9?'Your next standard drink is FREE.':`${credits}/9 toward your free drink.`):(acct.squareLinked?'Square customer connected. Loyalty tracking will appear here when Square Loyalty is enabled.':'Account saved. We still need to link this profile to Square.');
-    $('#customerName').value=acct.name;$('#customerPhone').value=acct.phone;$('#customerEmail').value=acct.email||'';if(acct.address&&!$('#deliveryStreet').value.trim())fillSavedAddress(acct.address);
+    $('#profileName').textContent=`Hi, ${acct.name}`;
+    $('#profileContact').textContent=[acct.phone,acct.email].filter(Boolean).join(' • ');
+    const parts=String(acct.name||'').trim().split(/\s+/);
+    $('#customerName').value=parts.shift()||'';
+    $('#customerLastName').value=parts.join(' ');
+    $('#customerPhone').value=acct.phone;$('#customerEmail').value=acct.email||'';
+    if(acct.address&&!$('#deliveryStreet').value.trim())fillSavedAddress(acct.address);
   }
 }
 
@@ -276,14 +273,14 @@ function openAccount(mode='login'){
   else{$('#accountAuthView').classList.remove('hidden');$('#accountProfileView').classList.add('hidden');setAuthMode(mode);}
   $('#accountDialog').showModal();
 }
-function setAuthMode(mode){authMode=mode;$$('.auth-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));const signup=mode==='signup';$('#nameField').classList.toggle('hidden',!signup);$('#emailField').classList.toggle('hidden',!signup);$('#accountEmail').required=signup;$('#accountTitle').textContent=signup?'Create your account':'Log in';$('#accountSubmit').textContent=signup?'Create account':'Log in';$('#accountPassword').autocomplete=signup?'new-password':'current-password';$('#accountMessage').textContent='';}
+function setAuthMode(mode){authMode=mode;$$('.auth-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));const signup=mode==='signup';$('#nameField').classList.toggle('hidden',!signup);$('#lastNameField').classList.toggle('hidden',!signup);$('#emailField').classList.toggle('hidden',!signup);$('#accountEmail').required=signup;$('#accountTitle').textContent=signup?'Create your account':'Log in';$('#accountSubmit').textContent=signup?'Create account':'Log in';$('#accountPassword').autocomplete=signup?'new-password':'current-password';$('#accountMessage').textContent='';}
 $('#accountForm').onsubmit=async e=>{
-  e.preventDefault(); const phone=$('#accountPhone').value.trim(),password=$('#accountPassword').value,name=$('#accountName').value.trim(),email=$('#accountEmail').value.trim();
+  e.preventDefault(); const phone=$('#accountPhone').value.trim(),password=$('#accountPassword').value,name=$('#accountName').value.trim(),lastName=$('#accountLastName').value.trim(),email=$('#accountEmail').value.trim();
   if(authMode==='signup'&&password.length<8){$('#accountMessage').textContent='Password must be at least 8 characters.';return;}
   const btn=$('#accountSubmit');btn.disabled=true;btn.textContent=authMode==='signup'?'Creating…':'Logging in…';$('#accountMessage').textContent='';
   try{
     const endpoint=authMode==='signup'?'/api/auth/signup':'/api/auth/login';
-    const payload=authMode==='signup'?{name,phone,email,password}:{phone,password};
+    const payload=authMode==='signup'?{name,lastName,phone,email,password}:{phone,password};
     const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)});const data=await r.json();
     if(!r.ok)throw new Error(data.error||'Account request failed.'); currentUser=data.user; renderAccountState(); $('#accountDialog').close();
   }catch(err){$('#accountMessage').textContent=err.message;}finally{btn.disabled=false;btn.textContent=authMode==='signup'?'Create account':'Log in';}
@@ -342,7 +339,7 @@ async function refreshSquarePreview(){
   try{
     const response=await fetch('/api/order-preview',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
       cart,deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,
-      notes:$('#orderNotes').value.trim(),customer:{name:$('#customerName').value.trim(),phone:$('#customerPhone').value.trim(),email:$('#customerEmail').value.trim()},
+      notes:$('#orderNotes').value.trim(),customer:{name:$('#customerName').value.trim(),lastName:$('#customerLastName').value.trim(),phone:$('#customerPhone').value.trim(),email:$('#customerEmail').value.trim()},
       tipCents:selectedTipCents
     })});
     const result=await response.json();
@@ -375,11 +372,11 @@ $('#cartBtn').onclick=openCart; $('#closeCart').onclick=closeCart; $('#scrim').o
 $('#customizeClose').onclick=()=>$('#customizeDialog').close();$('#addCustomized').onclick=addCustomized;
 $$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return;customizing.size=b.dataset.size;$$('#sizeChoices .size-choice').forEach(x=>x.classList.toggle('active',x===b));updateCustomizerPrice();});
 $('#mobileCartBar').onclick=openCart;
-$('#accountBtn').onclick=()=>openAccount();$('#joinRewardsBtn').onclick=()=>openAccount('signup');$('#rewardLoginBtn').onclick=()=>openAccount('login');$('#accountDetailsBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
+$('#accountBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
 
 $('#placeOrder').onclick=async()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}const timeError=validateRequestedTime($('#orderTime').value);if(timeError)return alert(timeError);if(currentUser)await saveCurrentAddress();selectedTipCents=0;squarePreview=null;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();$('#paymentMessage').textContent='Calculating sales tax…';const ok=await refreshSquarePreview();if(ok)$('#paymentMessage').textContent='';};
 $('#checkoutClose').onclick=()=>$('#checkoutDialog').close();
-$('#payButton').onclick=async()=>{const timeError=validateRequestedTime($('#orderTime').value);if(timeError){$('#paymentMessage').textContent=timeError;return;}const name=$('#customerName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!phone){$('#paymentMessage').textContent='Enter your name and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const previewOk=await refreshSquarePreview();if(!previewOk)throw new Error('Could not confirm sales tax. Please try again.');const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok){if(response.status===409)loadDeliverySlots();throw new Error(result.error||'Payment failed.');}cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
+$('#payButton').onclick=async()=>{const timeError=validateRequestedTime($('#orderTime').value);if(timeError){$('#paymentMessage').textContent=timeError;return;}const name=$('#customerName').value.trim(),lastName=$('#customerLastName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!lastName||!phone){$('#paymentMessage').textContent='Enter your first name, last name, and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const previewOk=await refreshSquarePreview();if(!previewOk)throw new Error('Could not confirm sales tax. Please try again.');const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,lastName,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok){if(response.status===409)loadDeliverySlots();throw new Error(result.error||'Payment failed.');}cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
 renderMenu();renderCart();renderAccountState();bindTipControls();setupDeliverySlots();refreshSession();initSquare();

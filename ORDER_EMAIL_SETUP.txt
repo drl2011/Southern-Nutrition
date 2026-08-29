@@ -1,0 +1,21 @@
+Southern Nutrition — New Order Email Alerts
+
+Recipient: Ashley.lewis0311@icloud.com
+Sender: orders@getsouthernnutrition.com
+
+After a successful Square payment, the Worker sends a best-effort new-order email containing:
+- delivery date/window
+- customer name, phone, and email
+- full delivery address and workplace
+- delivery instructions and order notes
+- every drink/item
+- subtotal, discount, sales tax, tip, and total
+- Square order and payment IDs
+
+The payment is never reversed or reported as failed solely because an email cannot be delivered. Email failures are logged in Cloudflare.
+
+Cloudflare setup required before email can send:
+1. Compute & AI > Email Service > Email Sending.
+2. Onboard getsouthernnutrition.com as a sending domain.
+3. Ensure Ashley.lewis0311@icloud.com is an allowed/verified destination if Cloudflare prompts for verification.
+4. Deploy this package so the EMAIL send binding in wrangler.jsonc is applied.
