@@ -1,0 +1,1 @@
+30-minute D1-backed delivery windows. One order per window. Failed payments release the slot. Successful payments permanently book it. Future ordering and saved addresses remain included.

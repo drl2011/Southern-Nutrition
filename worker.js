@@ -381,12 +381,32 @@ function validateRequestedTime(value){
   return '';
 }
 
+async function ensureDeliverySlotSchema(env){
+ if(!env.DB)return false;
+ await env.DB.prepare(`CREATE TABLE IF NOT EXISTS delivery_slots(slot_start TEXT PRIMARY KEY,status TEXT NOT NULL DEFAULT 'booked',user_id INTEGER,payment_id TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();return true;
+}
+function validDate(v){const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return null;const p={year:+m[1],month:+m[2],day:+m[3]},d=new Date(Date.UTC(p.year,p.month-1,p.day));return d.getUTCFullYear()===p.year&&d.getUTCMonth()+1===p.month&&d.getUTCDate()===p.day?p:null;}
+function slotLabel(h,m){const f=(hh,mm)=>`${hh%12||12}:${String(mm).padStart(2,'0')} ${hh>=12?'PM':'AM'}`,t=h*60+m+30;return `${f(h,m)}–${f(Math.floor(t/60),t%60)}`;}
+async function deliverySlots(request,env){
+ if(!env.DB)return json({error:'Delivery scheduling database is not connected.'},503);
+ await ensureDeliverySlotSchema(env);const date=new URL(request.url).searchParams.get('date'),d=validDate(date);if(!d)return json({error:'Choose a valid delivery date.'},400);
+ const now=businessNowParts();if(Date.UTC(d.year,d.month-1,d.day)<Date.UTC(now.year,now.month-1,now.day))return json({date,slots:[]});
+ const rows=await env.DB.prepare(`SELECT slot_start FROM delivery_slots WHERE slot_start LIKE ? AND status='booked'`).bind(`${date}T%`).all(),taken=new Set((rows.results||[]).map(x=>x.slot_start)),slots=[];
+ for(let mins=360;mins<1080;mins+=30){const h=Math.floor(mins/60),m=mins%60,start=`${date}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,future=minuteStamp({year:d.year,month:d.month,day:d.day,hour:h,minute:m})>minuteStamp(now);slots.push({start,label:slotLabel(h,m),available:future&&!taken.has(start)});}
+ return json({date,slots});
+}
+async function reserveSlot(env,start,userId){await ensureDeliverySlotSchema(env);try{await env.DB.prepare(`INSERT INTO delivery_slots(slot_start,status,user_id) VALUES (?,'booked',?)`).bind(start,userId||null).run();return true;}catch(e){if(/unique|constraint/i.test(String(e?.message||e)))return false;throw e;}}
+async function releaseSlot(env,start){try{await env.DB.prepare(`DELETE FROM delivery_slots WHERE slot_start=? AND payment_id IS NULL`).bind(start).run();}catch(e){}}
+
 async function payment(request, env){
+  let reservedSlot='';
   try{
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
     const body=await request.json(); if(!body.sourceId) return json({error:'Missing Square payment token.'},400);
     const requestedTimeError=validateRequestedTime(body.requestedTime);
     if(requestedTimeError) return json({error:requestedTimeError},400);
+    const slotUser=env.DB?await getSessionUser(request,env):null;
+    if(env.DB){const ok=await reserveSlot(env,body.requestedTime,slotUser?.id);if(!ok)return json({error:'That delivery window was just taken. Please choose another available time.'},409);reservedSlot=body.requestedTime;}
     const order=calculateOrder(body.cart,body.tipCents);
     const fulfillment='DELIVERY';
     const customerName=String(body.customer?.name||'').trim().slice(0,100), customerPhone=String(body.customer?.phone||'').trim().slice(0,30);
@@ -399,9 +419,10 @@ async function payment(request, env){
     const user=await getSessionUser(request,env); if(user?.square_customer_id)squareBody.customer_id=user.square_customer_id;
     const response=await fetch(endpoint,{method:'POST',headers:{Authorization:`Bearer ${env.SQUARE_ACCESS_TOKEN}`,'Square-Version':'2026-08-19','Content-Type':'application/json'},body:JSON.stringify(squareBody)});
     const result=await response.json();
-    if(!response.ok) return json({error:result?.errors?.[0]?.detail||'Square declined or could not process the payment.'},response.status>=500?502:400);
+    if(!response.ok){if(env.DB&&reservedSlot){await releaseSlot(env,reservedSlot);reservedSlot='';}return json({error:result?.errors?.[0]?.detail||'Square declined or could not process the payment.'},response.status>=500?502:400);}
+    if(env.DB&&reservedSlot){await env.DB.prepare(`UPDATE delivery_slots SET payment_id=? WHERE slot_start=?`).bind(result.payment?.id||'',reservedSlot).run();reservedSlot='';}
     return json({ok:true,paymentId:result.payment?.id,receiptUrl:result.payment?.receipt_url||null,amount:order.amount,subtotal:order.subtotal,tipCents:order.tipCents,discount:order.discount,status:result.payment?.status||'COMPLETED',customerLinked:Boolean(user?.square_customer_id)});
-  }catch(e){ return json({error:e?.message||'Unable to process payment.'},400); }
+  }catch(e){if(env.DB&&reservedSlot)await releaseSlot(env,reservedSlot);return json({error:e?.message||'Unable to process payment.'},400); }
 }
 export default {
   async fetch(request, env){
@@ -418,6 +439,7 @@ export default {
     if(url.pathname==='/api/admin/me' && request.method==='GET') return adminMe(request,env);
     if(url.pathname==='/api/admin/users' && request.method==='GET') return adminUsers(request,env);
     if(url.pathname.startsWith('/api/admin/users/') && request.method==='PATCH') return adminUpdateUser(request,env,url.pathname.split('/').pop());
+    if(url.pathname==='/api/delivery-slots' && request.method==='GET') return deliverySlots(request,env);
     if(url.pathname==='/api/payment' && request.method==='POST') return payment(request,env);
     if((url.pathname==='/admin'||url.pathname==='/admin/') && request.method==='GET'){
       const adminUrl=new URL('/admin.html',request.url);
