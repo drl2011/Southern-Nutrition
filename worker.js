@@ -637,7 +637,7 @@ async function sendNewOrderEmail(env,{body,order,squareOrder,payment,tax,charged
     <p style="font-size:12px;color:#555">Square Order: ${escHtml(squareOrder?.id||'')}<br>Payment: ${escHtml(payment?.id||'')}</p>
   </div>`;
   return env.EMAIL.send({
-    to:'Ashley.lewis0311@icloud.com',
+    to:'Ashley.alarconlewis@gmail.com',
     from:{email:'orders@getsouthernnutrition.com',name:'Southern Nutrition'},
     subject,html,text
   });

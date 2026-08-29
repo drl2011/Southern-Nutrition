@@ -36,7 +36,7 @@
   "send_email": [
     {
       "name": "EMAIL",
-      "destination_address": "ashley.alarconlewis@gmail.com",
+      "destination_address": "Ashley.alarconlewis@gmail.com",
       "allowed_sender_addresses": [
         "orders@getsouthernnutrition.com"
       ]
