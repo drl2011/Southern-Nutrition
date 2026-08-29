@@ -14,7 +14,7 @@
       <div>
         <span class="eyebrow">Private dashboard</span>
         <h1>Southern Nutrition Admin</h1>
-        <p>Customer accounts stored in Southern Nutrition's D1 database.</p>
+        <p>Customer accounts, account controls, and Square Loyalty status.</p>
       </div>
       <div class="admin-header-actions">
         <a class="btn ghost" href="/">View website</a>
@@ -23,14 +23,13 @@
     </header>
 
     <section id="adminLoading" class="admin-card admin-status-card">
-      <strong>Checking access…</strong>
-      <p>Please wait.</p>
+      <strong>Checking access…</strong><p>Please wait.</p>
     </section>
 
     <section id="adminLogin" class="admin-card admin-login hidden">
       <span class="eyebrow">Admin sign in</span>
       <h2>Log in with your Southern Rewards account</h2>
-      <p class="admin-muted">Only accounts marked as an administrator can open the dashboard.</p>
+      <p class="admin-muted">Only administrator accounts can open this dashboard.</p>
       <form id="adminLoginForm">
         <label>Phone number<input id="adminPhone" autocomplete="tel" inputmode="tel" placeholder="(555) 555-5555" required /></label>
         <label>Password<input id="adminPassword" type="password" autocomplete="current-password" minlength="8" placeholder="Your password" required /></label>
@@ -51,23 +50,22 @@
         <article class="admin-stat"><span>Total accounts</span><strong id="statTotal">—</strong></article>
         <article class="admin-stat"><span>Square linked</span><strong id="statSquare">—</strong></article>
         <article class="admin-stat"><span>New in 7 days</span><strong id="statRecent">—</strong></article>
+        <article class="admin-stat"><span>Disabled</span><strong id="statDisabled">—</strong></article>
       </div>
 
       <section class="admin-card">
         <div class="admin-toolbar">
-          <div>
-            <span class="eyebrow">Customers</span>
-            <h2>Customer accounts</h2>
-          </div>
+          <div><span class="eyebrow">Customers</span><h2>All customer accounts</h2></div>
           <div class="admin-tools">
-            <input id="customerSearch" type="search" placeholder="Search name, phone, or email" autocomplete="off" />
+            <input id="customerSearch" type="search" placeholder="Search name, phone, email, or ID" autocomplete="off" />
             <button class="btn ghost" id="refreshCustomers">Refresh</button>
           </div>
         </div>
+        <p id="loyaltyStatus" class="admin-loyalty-note"></p>
         <p id="adminMessage" class="form-note" role="status"></p>
         <div class="admin-table-wrap">
           <table class="admin-table">
-            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Square</th><th>Joined</th></tr></thead>
+            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Square</th><th>Loyalty</th><th>Status</th><th>Joined</th><th></th></tr></thead>
             <tbody id="customerRows"></tbody>
           </table>
         </div>
@@ -75,6 +73,30 @@
       </section>
     </section>
   </main>
+
+  <dialog id="editUserDialog" class="admin-dialog">
+    <form id="editUserForm" method="dialog">
+      <div class="admin-dialog-head">
+        <div><span class="eyebrow">Customer account</span><h2 id="editUserTitle">Edit customer</h2></div>
+        <button type="button" class="admin-icon-button" id="closeEditUser" aria-label="Close">×</button>
+      </div>
+      <input type="hidden" id="editUserId" />
+      <div class="admin-edit-grid">
+        <label>Name<input id="editUserName" maxlength="80" required /></label>
+        <label>Phone<input id="editUserPhone" inputmode="tel" autocomplete="off" required /></label>
+        <label class="admin-wide">Email<input id="editUserEmail" type="email" autocomplete="off" required /></label>
+        <label class="admin-wide">Set a new password <span class="admin-label-note">(leave blank to keep current password)</span><input id="editUserPassword" type="password" minlength="8" autocomplete="new-password" placeholder="8+ characters" /></label>
+      </div>
+      <label class="admin-toggle"><input id="editUserDisabled" type="checkbox" /><span><strong>Disable this account</strong><small>Prevents login and signs the customer out.</small></span></label>
+      <div class="admin-edit-note">Name, phone, and email changes update the Southern Nutrition website account. Square customer details are not changed from this screen.</div>
+      <p id="editUserMessage" class="form-note" role="status"></p>
+      <div class="admin-dialog-actions">
+        <button type="button" class="btn ghost" id="cancelEditUser">Cancel</button>
+        <button type="submit" class="btn primary" id="saveEditUser">Save changes</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="admin.js"></script>
 </body>
 </html>

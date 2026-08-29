@@ -73,9 +73,15 @@ async function verifyPassword(password,stored){
 async function getSessionUser(request,env){
   if(!env.DB)return null;
   const sessionId=parseCookies(request)[SESSION_COOKIE]; if(!sessionId)return null;
-  const row=await env.DB.prepare(`SELECT u.id,u.email,u.phone,u.name,u.square_customer_id,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? LIMIT 1`).bind(sessionId).first();
+  let row;
+  try{
+    row=await env.DB.prepare(`SELECT u.id,u.email,u.phone,u.name,u.square_customer_id,COALESCE(u.is_disabled,0) AS is_disabled,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? LIMIT 1`).bind(sessionId).first();
+  }catch(e){
+    // Backward compatibility before the admin schema has added is_disabled.
+    row=await env.DB.prepare(`SELECT u.id,u.email,u.phone,u.name,u.square_customer_id,0 AS is_disabled,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? LIMIT 1`).bind(sessionId).first();
+  }
   if(!row)return null;
-  if(new Date(row.expires_at).getTime()<=Date.now()){await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sessionId).run();return null;}
+  if(new Date(row.expires_at).getTime()<=Date.now()||Number(row.is_disabled)===1){await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sessionId).run();return null;}
   return row;
 }
 async function createSession(userId,env){
@@ -129,10 +135,12 @@ async function signup(request,env){
 async function login(request,env){
   if(!env.DB)return json({error:'Customer database is not connected.'},503);
   try{
+    await ensureAdminSchema(env);
     const body=await request.json(),phone=normalizePhone(body.phone),password=String(body.password||'');
     if(!phone||!password)return json({error:'Enter your phone number and password.'},400);
-    const row=await env.DB.prepare('SELECT id,email,phone,name,password_hash,square_customer_id FROM users WHERE phone=? LIMIT 1').bind(phone).first();
+    const row=await env.DB.prepare('SELECT id,email,phone,name,password_hash,square_customer_id,COALESCE(is_disabled,0) AS is_disabled FROM users WHERE phone=? LIMIT 1').bind(phone).first();
     if(!row||!(await verifyPassword(password,row.password_hash)))return json({error:'Phone number or password does not match.'},401);
+    if(Number(row.is_disabled)===1)return json({error:'This account has been disabled. Please contact Southern Nutrition.'},403);
     await env.DB.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(new Date().toISOString()).run();
     const sessionId=await createSession(row.id,env);
     return json({ok:true,user:publicUser(row)},200,{'Set-Cookie':sessionCookie(sessionId)});
@@ -146,29 +154,29 @@ async function me(request,env){
   const row=await getSessionUser(request,env); return json({authenticated:Boolean(row),user:row?publicUser(row):null});
 }
 
-async function ensureAdminColumn(env){
+async function ensureAdminSchema(env){
   if(!env.DB) return false;
-  try{
-    await env.DB.prepare('SELECT is_admin FROM users LIMIT 1').first();
-    return true;
-  }catch(e){
-    const msg=String(e?.message||e);
-    if(!/is_admin|no such column/i.test(msg)) throw e;
-    try{
-      await env.DB.prepare('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0').run();
-      return true;
-    }catch(alterError){
-      if(/duplicate column|already exists/i.test(String(alterError?.message||alterError))) return true;
-      throw alterError;
+  const additions=[
+    ['is_admin',`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`],
+    ['is_disabled',`ALTER TABLE users ADD COLUMN is_disabled INTEGER NOT NULL DEFAULT 0`]
+  ];
+  for(const [column,sql] of additions){
+    try{await env.DB.prepare(`SELECT ${column} FROM users LIMIT 1`).first();}
+    catch(e){
+      const msg=String(e?.message||e);
+      if(!new RegExp(`${column}|no such column`,'i').test(msg)) throw e;
+      try{await env.DB.prepare(sql).run();}
+      catch(alterError){if(!/duplicate column|already exists/i.test(String(alterError?.message||alterError))) throw alterError;}
     }
   }
+  return true;
 }
 async function adminSession(request,env){
   const user=await getSessionUser(request,env);
   if(!user) return {user:null,admin:false};
-  await ensureAdminColumn(env);
-  const access=await env.DB.prepare('SELECT is_admin FROM users WHERE id=? LIMIT 1').bind(user.id).first();
-  return {user,admin:Number(access?.is_admin)===1};
+  await ensureAdminSchema(env);
+  const access=await env.DB.prepare('SELECT is_admin,is_disabled FROM users WHERE id=? LIMIT 1').bind(user.id).first();
+  return {user,admin:Number(access?.is_admin)===1&&Number(access?.is_disabled)!==1};
 }
 async function adminMe(request,env){
   if(!env.DB) return json({error:'Customer database is not connected.'},503);
@@ -177,25 +185,84 @@ async function adminMe(request,env){
     return json({authenticated:Boolean(access.user),admin:access.admin,user:access.user?publicUser(access.user):null});
   }catch(e){console.log('admin me error',e);return json({error:'Unable to check admin access right now.'},500);}
 }
+async function getLoyaltyForCustomers(env,customerIds){
+  const map=new Map();
+  if(!env.SQUARE_ACCESS_TOKEN||!customerIds.length)return {available:false,map,error:null};
+  try{
+    for(let i=0;i<customerIds.length;i+=30){
+      const chunk=customerIds.slice(i,i+30);
+      const data=await squareRequest(env,'/v2/loyalty/accounts/search',{method:'POST',body:JSON.stringify({query:{customer_ids:chunk},limit:200})});
+      for(const account of data.loyalty_accounts||[]){
+        if(account.customer_id) map.set(account.customer_id,{accountId:account.id,balance:Number(account.balance||0),lifetimePoints:Number(account.lifetime_points||0),enrolledAt:account.enrolled_at||null});
+      }
+    }
+    return {available:true,map,error:null};
+  }catch(e){
+    console.log('admin loyalty lookup error',e?.message||e);
+    return {available:false,map,error:e?.message||'Square Loyalty is not available.'};
+  }
+}
 async function adminUsers(request,env){
   if(!env.DB) return json({error:'Customer database is not connected.'},503);
   try{
     const access=await adminSession(request,env);
     if(!access.user) return json({error:'Log in to continue.'},401);
     if(!access.admin) return json({error:'Admin access required.'},403);
+    await ensureAdminSchema(env);
     const url=new URL(request.url);
     const q=String(url.searchParams.get('q')||'').trim().slice(0,100);
     const like=`%${q.replaceAll('%','\\%').replaceAll('_','\\_')}%`;
     const query=q
-      ? `SELECT id,name,phone,email,square_customer_id,created_at FROM users WHERE name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT 250`
-      : `SELECT id,name,phone,email,square_customer_id,created_at FROM users ORDER BY created_at DESC LIMIT 250`;
+      ? `SELECT id,name,phone,email,square_customer_id,created_at,is_disabled,is_admin FROM users WHERE CAST(id AS TEXT) LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' ORDER BY created_at DESC`
+      : `SELECT id,name,phone,email,square_customer_id,created_at,is_disabled,is_admin FROM users ORDER BY created_at DESC`;
     const result=q
-      ? await env.DB.prepare(query).bind(like,like,like).all()
+      ? await env.DB.prepare(query).bind(like,like,like,like).all()
       : await env.DB.prepare(query).all();
-    const statsRow=await env.DB.prepare(`SELECT COUNT(*) AS total, SUM(CASE WHEN square_customer_id IS NOT NULL AND square_customer_id <> '' THEN 1 ELSE 0 END) AS square_linked, SUM(CASE WHEN datetime(created_at) >= datetime('now','-7 days') THEN 1 ELSE 0 END) AS recent_7 FROM users`).first();
-    const users=(result.results||[]).map(row=>({id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at}));
-    return json({users,stats:{total:Number(statsRow?.total||0),squareLinked:Number(statsRow?.square_linked||0),recent7Days:Number(statsRow?.recent_7||0)}});
+    const statsRow=await env.DB.prepare(`SELECT COUNT(*) AS total, SUM(CASE WHEN square_customer_id IS NOT NULL AND square_customer_id <> '' THEN 1 ELSE 0 END) AS square_linked, SUM(CASE WHEN datetime(created_at) >= datetime('now','-7 days') THEN 1 ELSE 0 END) AS recent_7, SUM(CASE WHEN COALESCE(is_disabled,0)=1 THEN 1 ELSE 0 END) AS disabled FROM users`).first();
+    const ids=[...new Set((result.results||[]).map(r=>r.square_customer_id).filter(Boolean))];
+    const loyalty=await getLoyaltyForCustomers(env,ids);
+    const users=(result.results||[]).map(row=>{
+      const loyaltyAccount=row.square_customer_id?loyalty.map.get(row.square_customer_id):null;
+      return {id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at,disabled:Number(row.is_disabled)===1,isAdmin:Number(row.is_admin)===1,loyalty:loyaltyAccount||null};
+    });
+    return json({users,stats:{total:Number(statsRow?.total||0),squareLinked:Number(statsRow?.square_linked||0),recent7Days:Number(statsRow?.recent_7||0),disabled:Number(statsRow?.disabled||0)},loyalty:{available:loyalty.available,error:loyalty.error}});
   }catch(e){console.log('admin users error',e);return json({error:'Unable to load customer accounts right now.'},500);}
+}
+async function adminUpdateUser(request,env,userId){
+  if(!env.DB) return json({error:'Customer database is not connected.'},503);
+  try{
+    const access=await adminSession(request,env);
+    if(!access.user) return json({error:'Log in to continue.'},401);
+    if(!access.admin) return json({error:'Admin access required.'},403);
+    await ensureAdminSchema(env);
+    const id=Number(userId); if(!Number.isInteger(id)||id<1)return json({error:'Invalid customer account.'},400);
+    const existing=await env.DB.prepare('SELECT id,name,phone,email,is_admin,is_disabled FROM users WHERE id=? LIMIT 1').bind(id).first();
+    if(!existing)return json({error:'Customer account not found.'},404);
+    const body=await request.json();
+    const name=String(body.name??existing.name??'').trim().slice(0,80);
+    const phone=normalizePhone(body.phone??existing.phone);
+    const email=normalizeEmail(body.email??existing.email);
+    const disabled=Boolean(body.disabled);
+    const newPassword=String(body.newPassword||'');
+    if(!name)return json({error:'Name cannot be blank.'},400);
+    if(!phone)return json({error:'Enter a valid 10-digit phone number.'},400);
+    if(!email||!validEmail(email))return json({error:'Enter a valid email address.'},400);
+    if(newPassword&&newPassword.length<8)return json({error:'New password must be at least 8 characters.'},400);
+    if(id===Number(access.user.id)&&disabled)return json({error:'You cannot disable your own admin account.'},400);
+    const duplicate=await env.DB.prepare('SELECT id FROM users WHERE (phone=? OR email=?) AND id<>? LIMIT 1').bind(phone,email,id).first();
+    if(duplicate)return json({error:'Another account already uses that phone number or email.'},409);
+    await env.DB.prepare('UPDATE users SET name=?,phone=?,email=?,is_disabled=? WHERE id=?').bind(name,phone,email,disabled?1:0,id).run();
+    let passwordReset=false;
+    if(newPassword){
+      const passwordHash=await hashPassword(newPassword);
+      await env.DB.prepare('UPDATE users SET password_hash=? WHERE id=?').bind(passwordHash,id).run();
+      await env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(id).run();
+      passwordReset=true;
+    }
+    if(disabled) await env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(id).run();
+    const row=await env.DB.prepare('SELECT id,name,phone,email,square_customer_id,created_at,is_disabled,is_admin FROM users WHERE id=?').bind(id).first();
+    return json({ok:true,user:{id:row.id,name:row.name,phone:row.phone,email:row.email,squareLinked:Boolean(row.square_customer_id),createdAt:row.created_at,disabled:Number(row.is_disabled)===1,isAdmin:Number(row.is_admin)===1},passwordReset,selfSessionCleared:passwordReset&&id===Number(access.user.id)});
+  }catch(e){console.log('admin update user error',e);return json({error:'Unable to update this customer account right now.'},500);}
 }
 
 async function payment(request, env){
@@ -231,6 +298,7 @@ export default {
     if(url.pathname==='/api/auth/me' && request.method==='GET') return me(request,env);
     if(url.pathname==='/api/admin/me' && request.method==='GET') return adminMe(request,env);
     if(url.pathname==='/api/admin/users' && request.method==='GET') return adminUsers(request,env);
+    if(url.pathname.startsWith('/api/admin/users/') && request.method==='PATCH') return adminUpdateUser(request,env,url.pathname.split('/').pop());
     if(url.pathname==='/api/payment' && request.method==='POST') return payment(request,env);
     if((url.pathname==='/admin'||url.pathname==='/admin/') && request.method==='GET'){
       const adminUrl=new URL('/admin.html',request.url);

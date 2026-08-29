@@ -1,44 +1,22 @@
-V9 updates:
-- Fixed refresh scroll creep by disabling browser scroll restoration for normal page loads.
-- Reduced the Southern Nutrition logo/banner size on mobile while keeping the full logo centered and visible.
+Southern Nutrition Worker V18
 
-Southern Nutrition V8
+Admin dashboard upgrades:
+- Shows all customer accounts (no 250-row cap).
+- Search by customer ID, name, phone, or email.
+- Edit customer name, phone, and email.
+- Optional admin password reset (new passwords are PBKDF2 hashed; existing passwords are never visible).
+- Disable/re-enable customer accounts. Disabled accounts cannot log in and active sessions are removed.
+- Admin cannot disable their own account.
+- Adds active/disabled account status and disabled-account count.
+- Adds read-only Square Loyalty balance and lifetime points to the admin dashboard when Square Loyalty/API credentials are available.
+- Loyalty lookup uses Square customer IDs already linked to Southern Nutrition accounts.
+- If Square/Loyalty is not configured yet, the dashboard clearly says loyalty balances are not available rather than inventing points.
 
-- Replaced demo/localStorage customer login with Cloudflare D1-backed accounts.
-- Passwords are PBKDF2-SHA256 hashed; raw passwords are never stored.
-- Added secure HttpOnly/Secure/SameSite session cookies with a 30-day session.
-- Added signup, login, logout, and current-session API endpoints.
-- Signup creates or links a Square Customer profile and stores only the Square customer ID in D1.
-- Logged-in Square payments are now attached to that Square customer ID.
-- Account profile shows whether Square linking is ready.
-- Reward UI is ready for Square Loyalty; actual points remain disabled until a Square Loyalty program/subscription is enabled and connected.
-- Email is required for new accounts because the current D1 users table requires it.
-- Password minimum is now 8 characters.
-- Bumped cart storage key to V8 and safely migrates valid old cart items.
-- Added the D1 binding to wrangler.jsonc so GitHub/Cloudflare deployments keep the DB connection.
+Security:
+- All admin reads/edits are protected server-side by is_admin.
+- Password hashes and Square access tokens are never returned to the browser.
+- /admin remains noindex/noarchive.
+- New is_disabled D1 column is created automatically on first admin/API use.
 
-
-V10
-- Replaced the circular Southern Nutrition header artwork with a wide lake/porch background.
-- Added responsive Southern / NUTRITION text directly in the website banner.
-- Mobile banner is shorter and centered, with no circular SN emblem.
-
-V11
-- Removed the decorative lake/logo photo banner completely.
-- Kept the compact text Southern Nutrition header/navigation.
-
-V13: Fixed mobile address autofill/focus scrolling so the active delivery field stays visible above the keyboard.
-
-V14
-- Fixed cart/delivery form scrolling on iPad and desktop widths, not only phones.
-- Entire cart drawer now scrolls at every screen size.
-- Cart header stays visible while scrolling.
-- Delivery fields get safe scroll margins for iPad on-screen keyboards/autofill.
-
-V17 - Private Admin Dashboard
-- Added protected /admin dashboard.
-- Added server-side admin authorization for /api/admin/* routes.
-- Added customer account list, search, totals, Square-linked count, and 7-day signup count.
-- Admin data never includes password hashes.
-- Added one-time automatic D1 is_admin column creation when /admin is first checked.
-- Added ADMIN_SETUP.txt with the one-time SQL command needed to grant admin access to your account.
+Important:
+Editing name/phone/email in this admin dashboard updates the Southern Nutrition D1 account only. It does not currently edit the customer's Square Customer profile.
