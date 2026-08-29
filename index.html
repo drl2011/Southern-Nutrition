@@ -101,8 +101,13 @@
       <label>Business / Workplace <span class="optional">(optional)</span><input id="workplaceName" placeholder="Office, plant, salon, etc." /></label>
       <label>Delivery instructions <span class="optional">(optional)</span><textarea id="deliveryInstructions" placeholder="Front desk, gate instructions, where to meet you, etc."></textarea></label>
       <label>Delivery date<input id="deliveryDate" type="date" required /></label>
-<label>Available delivery window<select id="deliverySlot" required><option value="">Choose a delivery date first</option></select><span class="form-note">Orders may be placed anytime. One delivery order is available per 30-minute window from 6:00 AM to 6:00 PM Central.</span></label>
-<input id="orderTime" type="hidden" />
+            <label>Available delivery window
+              <select id="deliverySlot" required>
+                <option value="">Choose a delivery date first</option>
+              </select>
+              <span class="form-note">Orders may be placed anytime. One delivery order is available per 30-minute window from 6:00 AM to 6:00 PM Central.</span>
+            </label>
+            <input id="orderTime" type="hidden" />
       <label>Notes<textarea id="orderNotes" placeholder="Flavor notes, workplace name, etc."></textarea></label>
       <button class="btn primary full" id="placeOrder">Continue to secure checkout</button>
       <p class="form-note">Payments are securely processed by Square.</p>

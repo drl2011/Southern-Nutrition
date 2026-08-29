@@ -1,0 +1,1 @@
+Emergency fix: restored the full menu/application code that was accidentally removed in the prior delivery-slot build. Keeps 30-minute delivery slots, future ordering, saved addresses, centered drink images, empty ice cup, and iced protein coffee.
