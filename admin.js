@@ -17,13 +17,35 @@ async function api(path,options={}){
   if(!res.ok){const e=new Error(data.error||'Request failed.');e.status=res.status;throw e;} return data;
 }
 
+
+async function loadDeliveryAvailability(){
+  const toggle=$('deliveryAvailableToggle'), label=$('deliveryAvailableLabel'), msg=$('deliveryAvailabilityMessage');
+  try{
+    const data=await api('/api/admin/delivery-availability');
+    toggle.checked=Boolean(data.available);
+    label.textContent=data.available?'Available':'Not available';
+    msg.textContent=data.available?'Customers can check out normally.':'Checkout is blocked. Customers will see “Delivery unavailable — please call us at 205-549-2444.”';
+  }catch(e){msg.textContent=e.message;}
+}
+async function saveDeliveryAvailability(){
+  const toggle=$('deliveryAvailableToggle'), label=$('deliveryAvailableLabel'), msg=$('deliveryAvailabilityMessage');
+  toggle.disabled=true; msg.textContent='Saving…';
+  try{
+    const data=await api('/api/admin/delivery-availability',{method:'PUT',body:JSON.stringify({available:toggle.checked})});
+    toggle.checked=Boolean(data.available);
+    label.textContent=data.available?'Available':'Not available';
+    msg.textContent=data.available?'Delivery checkout is available.':'Delivery checkout is unavailable. Customers will be told to call 205-549-2444.';
+  }catch(e){toggle.checked=!toggle.checked;label.textContent=toggle.checked?'Available':'Not available';msg.textContent=e.message;}
+  finally{toggle.disabled=false;}
+}
+
 async function checkAccess(){
   show(loading); logoutButton.classList.add('hidden');
   try{
     const data=await api('/api/admin/me');
     if(!data.authenticated){show(loginView);return;}
     if(!data.admin){$('adminDeniedMessage').textContent=`${data.user?.email||data.user?.phone||'This account'} is signed in, but it does not have admin permission.`;logoutButton.classList.remove('hidden');show(deniedView);return;}
-    logoutButton.classList.remove('hidden');show(dashboard);await loadCustomers();
+    logoutButton.classList.remove('hidden');show(dashboard);await Promise.all([loadCustomers(),loadDeliveryAvailability()]);
   }catch(e){$('adminLoading').innerHTML=`<strong>Unable to check admin access.</strong><p>${esc(e.message)}</p>`;}
 }
 
@@ -68,3 +90,5 @@ $('adminLoginForm').addEventListener('submit',async e=>{e.preventDefault();const
 async function logout(){try{await api('/api/auth/logout',{method:'POST',body:'{}'});}catch{}location.href='/admin';}
 logoutButton.addEventListener('click',logout);$('adminDeniedLogout').addEventListener('click',logout);$('refreshCustomers').addEventListener('click',loadCustomers);$('customerSearch').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(loadCustomers,250);});
 checkAccess();
+
+$('deliveryAvailableToggle').addEventListener('change',saveDeliveryAvailability);

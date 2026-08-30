@@ -46,6 +46,19 @@
     </section>
 
     <section id="adminDashboard" class="hidden">
+      <section class="admin-card admin-delivery-control">
+        <div>
+          <span class="eyebrow">Delivery status</span>
+          <h2>Accepting delivery orders</h2>
+          <p class="admin-muted">Turn this off to stop checkout. Customers will be told to call us.</p>
+        </div>
+        <label class="admin-toggle">
+          <input id="deliveryAvailableToggle" type="checkbox" checked />
+          <span class="admin-toggle-slider"></span>
+          <strong id="deliveryAvailableLabel">Available</strong>
+        </label>
+        <p id="deliveryAvailabilityMessage" class="form-note" role="status"></p>
+      </section>
       <div class="admin-stats">
         <article class="admin-stat"><span>Total accounts</span><strong id="statTotal">—</strong></article>
         <article class="admin-stat"><span>Square linked</span><strong id="statSquare">—</strong></article>

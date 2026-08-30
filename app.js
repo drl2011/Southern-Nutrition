@@ -434,6 +434,12 @@ $('#accountBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#ac
 
 $('#placeOrder').onclick=async()=>{
   if(!cart.length)return alert('Add at least one drink first.');
+  try{
+    const availabilityResponse=await fetch('/api/delivery-availability',{cache:'no-store'});
+    const availability=await availabilityResponse.json();
+    if(availability.available===false)return alert('Delivery unavailable — please call us at 205-549-2444.');
+  }catch(e){}
+
   const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];
   for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}
   const timeError=validateRequestedTime($('#orderTime').value);

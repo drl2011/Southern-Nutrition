@@ -266,6 +266,43 @@ async function adminSession(request,env){
   const access=await env.DB.prepare('SELECT is_admin,is_disabled FROM users WHERE id=? LIMIT 1').bind(user.id).first();
   return {user,admin:Number(access?.is_admin)===1&&Number(access?.is_disabled)!==1};
 }
+
+async function ensureSiteSettingsSchema(env){
+  if(!env.DB) return false;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS site_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+  return true;
+}
+async function getDeliveryAvailability(env){
+  if(!env.DB) return true;
+  await ensureSiteSettingsSchema(env);
+  const row=await env.DB.prepare(`SELECT value FROM site_settings WHERE key='delivery_available'`).first();
+  return !row || String(row.value)!=='0';
+}
+async function deliveryAvailabilityPublic(env){
+  try{return json({available:await getDeliveryAvailability(env),phone:'205-549-2444'});}
+  catch(e){console.log('delivery availability error',e);return json({available:true,phone:'205-549-2444'});}
+}
+async function adminDeliveryAvailability(request,env){
+  if(!env.DB) return json({error:'Customer database is not connected.'},503);
+  try{
+    const access=await adminSession(request,env);
+    if(!access.user) return json({error:'Log in to continue.'},401);
+    if(!access.admin) return json({error:'Admin access required.'},403);
+    await ensureSiteSettingsSchema(env);
+    if(request.method==='PUT'){
+      const body=await request.json();
+      if(typeof body.available!=='boolean') return json({error:'Choose whether delivery is available.'},400);
+      await env.DB.prepare(`INSERT INTO site_settings(key,value,updated_at) VALUES('delivery_available',?,CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP`).bind(body.available?'1':'0').run();
+    }
+    return json({available:await getDeliveryAvailability(env)});
+  }catch(e){console.log('admin delivery availability error',e);return json({error:'Unable to update delivery availability.'},500);}
+}
+
 async function adminMe(request,env){
   if(!env.DB) return json({error:'Customer database is not connected.'},503);
   try{
@@ -456,6 +493,7 @@ function deliverySlotLabel(hour,minute){
 async function deliverySlots(request,env){
   if(!env.DB) return json({error:'Delivery scheduling database is not connected.'},503);
   try{
+    if(!(await getDeliveryAvailability(env))) return json({date:new URL(request.url).searchParams.get('date')||'',slots:[],deliveryAvailable:false});
     await ensureDeliverySlotSchema(env);
     const date=new URL(request.url).searchParams.get('date');
     const d=validDeliveryDate(date);
@@ -629,8 +667,18 @@ async function validateDeliveryRadius(address){
   return {miles,matchedAddress:matchedAddress||singleline,approximate};
 }
 
+
+async function requireDeliveryAvailable(env){
+  if(!(await getDeliveryAvailability(env))){
+    const e=new Error('Delivery unavailable — please call us at 205-549-2444.');
+    e.status=503;
+    throw e;
+  }
+}
+
 async function deliveryCheck(request,env){
   try{
+    await requireDeliveryAvailable(env);
     const body=await request.json();
     const result=await validateDeliveryRadius(body.deliveryAddress);
     return json({ok:true,miles:Number(result.miles.toFixed(1)),matchedAddress:result.matchedAddress,approximate:!!result.approximate});
@@ -641,6 +689,7 @@ async function deliveryCheck(request,env){
 
 async function orderPreview(request,env){
   try{
+    await requireDeliveryAvailable(env);
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID)return json({error:'Square is not configured on the server yet.'},503);
     const body=await request.json();
     const requestedTimeError=validateRequestedTime(body.requestedTime);
@@ -733,6 +782,7 @@ async function sendNewOrderEmail(env,{body,order,squareOrder,payment,tax,charged
 async function cashOrder(request,env){
   let reservedSlot='',squareOrder=null;
   try{
+    await requireDeliveryAvailable(env);
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
     const body=await request.json();
     const requestedTimeError=validateRequestedTime(body.requestedTime);
@@ -779,6 +829,7 @@ async function cashOrder(request,env){
 async function payment(request, env){
   let reservedSlot='',squareOrder=null;
   try{
+    await requireDeliveryAvailable(env);
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
     const body=await request.json();
     if(!body.sourceId) return json({error:'Missing Square payment token.'},400);
@@ -879,6 +930,8 @@ export default {
     if(url.pathname==='/api/auth/logout' && request.method==='POST') return logout(request,env);
     if(url.pathname==='/api/auth/me' && request.method==='GET') return me(request,env);
     if(url.pathname==='/api/account/address' && (request.method==='GET'||request.method==='PUT')) return savedAddress(request,env);
+    if(url.pathname==='/api/delivery-availability' && request.method==='GET') return deliveryAvailabilityPublic(env);
+    if(url.pathname==='/api/admin/delivery-availability' && (request.method==='GET'||request.method==='PUT')) return adminDeliveryAvailability(request,env);
     if(url.pathname==='/api/admin/me' && request.method==='GET') return adminMe(request,env);
     if(url.pathname==='/api/admin/users' && request.method==='GET') return adminUsers(request,env);
     if(url.pathname.startsWith('/api/admin/users/') && request.method==='PATCH') return adminUpdateUser(request,env,url.pathname.split('/').pop());
