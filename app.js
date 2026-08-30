@@ -150,9 +150,9 @@ function startAdd(id){
 }
 
 function renderCustomizer(){
-  const enhanceHeading=$('#enhanceHeading');
-  if(enhanceHeading) enhanceHeading.textContent=customizing.item?.coffee?'Enhance your coffee':'Enhance your tea';
   const item=menu.find(x=>x.id===customizing.id);
+  const enhanceHeading=$('#enhanceHeading');
+  if(enhanceHeading) enhanceHeading.textContent=item?.coffee?'Enhance your coffee':'Enhance your tea';
   if(item?.coffee){
     const coffeeFlavors=['Caramel','Mocha','House Blend'];
     $('#flavorChoices').innerHTML=coffeeFlavors.map(f=>`<button type="button" class="choice-chip coffee-choice ${customizing.flavors[0]===f?'selected':''}" data-coffee="${f}"><span>${f}</span></button>`).join('');
@@ -174,7 +174,7 @@ function renderCustomizer(){
   $('#flavorChoices').innerHTML=flavorOptions.map(f=>`<label class="choice-chip ${selected.has(f)?'selected':''}"><input type="checkbox" value="${f}" ${selected.has(f)?'checked':''}><span>${f}</span></label>`).join('');
   $$('#flavorChoices input').forEach(i=>i.onchange=()=>{ if(i.checked && !customizing.flavors.includes(i.value)) customizing.flavors.push(i.value); if(!i.checked) customizing.flavors=customizing.flavors.filter(f=>f!==i.value); renderCustomizer(); });
   $('#addonChoices').innerHTML=addons.map(a=>{const checked=customizing.addons.some(x=>x.id===a.id);return `<label class="addon-row ${checked?'selected':''}"><input type="checkbox" value="${a.id}" ${checked?'checked':''}><span><strong>${a.name}</strong>${a.caffeine?'<small> Adds additional caffeine</small>':''}</span><b>+${money(a.price)}</b></label>`}).join('');
-  $$$('#addonChoices input').forEach(i=>i.onchange=()=>{const a=addons.find(x=>x.id===i.value); customizing.addons=i.checked?[...customizing.addons.filter(x=>x.id!==a.id),a]:customizing.addons.filter(x=>x.id!==a.id); updateCustomizerPrice(); $(`.addon-row input[value="${i.value}"]`)?.closest('.addon-row')?.classList.toggle('selected',i.checked);});
+  $$('#addonChoices input').forEach(i=>i.onchange=()=>{const a=addons.find(x=>x.id===i.value); customizing.addons=i.checked?[...customizing.addons.filter(x=>x.id!==a.id),a]:customizing.addons.filter(x=>x.id!==a.id); updateCustomizerPrice(); $(`.addon-row input[value="${i.value}"]`)?.closest('.addon-row')?.classList.toggle('selected',i.checked);});
   updateCustomizerPrice();
 }
 
