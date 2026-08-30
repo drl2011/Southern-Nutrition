@@ -622,6 +622,16 @@ async function validateDeliveryRadius(address){
   return {miles,matchedAddress:match.matchedAddress||singleline};
 }
 
+async function deliveryCheck(request,env){
+  try{
+    const body=await request.json();
+    const result=await validateDeliveryRadius(body.deliveryAddress);
+    return json({ok:true,miles:Number(result.miles.toFixed(1)),matchedAddress:result.matchedAddress});
+  }catch(e){
+    return json({error:e?.message||'That address is outside our delivery area.'},400);
+  }
+}
+
 async function orderPreview(request,env){
   try{
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID)return json({error:'Square is not configured on the server yet.'},503);
@@ -866,6 +876,7 @@ export default {
     if(url.pathname==='/api/admin/users' && request.method==='GET') return adminUsers(request,env);
     if(url.pathname.startsWith('/api/admin/users/') && request.method==='PATCH') return adminUpdateUser(request,env,url.pathname.split('/').pop());
     if(url.pathname==='/api/delivery-slots' && request.method==='GET') return deliverySlots(request,env);
+    if(url.pathname==='/api/delivery-check' && request.method==='POST') return deliveryCheck(request,env);
     if(url.pathname==='/api/order-preview' && request.method==='POST') return orderPreview(request,env);
     if(url.pathname==='/api/payment' && request.method==='POST') return payment(request,env);
     if(url.pathname==='/api/cash-order' && request.method==='POST') return cashOrder(request,env);

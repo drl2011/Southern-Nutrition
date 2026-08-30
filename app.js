@@ -360,6 +360,16 @@ function setPaymentMethod(method){
     $('#paymentModeNote').textContent=squareEnvironment==='production'?'Payments are processed securely by Square.':'Test payment mode is currently enabled.';
   }
 }
+async function checkDeliveryArea(){
+  const response=await fetch('/api/delivery-check',{
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({deliveryAddress:getDeliveryAddressFromForm()})
+  });
+  const result=await response.json();
+  if(!response.ok) throw new Error(result.error||'That address is outside our delivery area.');
+  return result;
+}
 async function refreshSquarePreview(){
   try{
     const response=await fetch('/api/order-preview',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
@@ -399,7 +409,39 @@ $$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return
 $('#mobileCartBar').onclick=openCart;
 $('#accountBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
 
-$('#placeOrder').onclick=async()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}const timeError=validateRequestedTime($('#orderTime').value);if(timeError)return alert(timeError);if(currentUser)await saveCurrentAddress();selectedTipCents=0;squarePreview=null;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();setPaymentMethod('card');$('#paymentMessage').textContent='Calculating sales tax…';const ok=await refreshSquarePreview();if(ok)$('#paymentMessage').textContent='';};
+$('#placeOrder').onclick=async()=>{
+  if(!cart.length)return alert('Add at least one drink first.');
+  const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];
+  for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}
+  const timeError=validateRequestedTime($('#orderTime').value);
+  if(timeError)return alert(timeError);
+
+  const placeBtn=$('#placeOrder');
+  const originalText=placeBtn.textContent;
+  placeBtn.disabled=true;
+  placeBtn.textContent='Checking delivery area…';
+  try{
+    const delivery=await checkDeliveryArea();
+    if(currentUser)await saveCurrentAddress();
+    selectedTipCents=0;
+    squarePreview=null;
+    $('#customTip').value='';
+    $$('.tip-btn').forEach(b=>b.classList.remove('active'));
+    $('#checkoutOrder').innerHTML=checkoutSummary();
+    renderAccountState();
+    closeCart();
+    $('#checkoutDialog').showModal();
+    setPaymentMethod('card');
+    $('#paymentMessage').textContent=`Delivery address verified — ${delivery.miles.toFixed(1)} miles from 35660. Calculating sales tax…`;
+    const ok=await refreshSquarePreview();
+    if(ok)$('#paymentMessage').textContent=`Delivery address verified — ${delivery.miles.toFixed(1)} miles from 35660.`;
+  }catch(e){
+    alert(e.message);
+  }finally{
+    placeBtn.disabled=false;
+    placeBtn.textContent=originalText;
+  }
+};
 $('#checkoutClose').onclick=()=>$('#checkoutDialog').close();
 $$('.payment-method').forEach(b=>b.onclick=()=>setPaymentMethod(b.dataset.payment));
 
