@@ -151,3 +151,11 @@
   scroll-margin-top:90px;
   scroll-margin-bottom:140px;
 }
+
+/* Checkout payment choices */
+.payment-method-box{margin:18px 0 12px}
+.payment-method-box>strong{display:block;margin-bottom:8px}
+.payment-method-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.payment-method{border:1px solid rgba(0,0,0,.15);background:#fff;border-radius:12px;padding:12px 10px;font:inherit;font-weight:700;cursor:pointer}
+.payment-method.active{border-color:#d95772;box-shadow:0 0 0 2px rgba(217,87,114,.12)}
+#card-container.hidden,#squareStatus.hidden{display:none!important}

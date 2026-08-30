@@ -161,6 +161,13 @@
       <label>Email <span class="optional">(optional)</span><input id="customerEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
       <div class="checkout-contact-note">Need help? <a href="tel:+12055492444">Call (205) 549-2444</a> or <a href="sms:+12055492444">text us</a>.</div>
     </div>
+    <div class="payment-method-box">
+      <strong>Payment method</strong>
+      <div class="payment-method-options">
+        <button type="button" class="payment-method active" data-payment="card">Card</button>
+        <button type="button" class="payment-method" data-payment="cash">Cash on delivery</button>
+      </div>
+    </div>
     <div id="squareStatus" class="square-status">Checking secure payment connection…</div>
     <div id="card-container"></div>
     <button class="btn primary full" id="payButton" disabled>Pay securely</button>

@@ -595,12 +595,40 @@ async function cancelSquareOrder(env,order){
     });
   }catch(e){console.log('Square order cleanup error',e);}
 }
+const DELIVERY_ORIGIN={lat:34.75518417,lng:-87.70292664,zip:'35660'};
+const DELIVERY_RADIUS_MILES=25;
+function milesBetween(lat1,lng1,lat2,lng2){
+  const toRad=x=>x*Math.PI/180,R=3958.7613;
+  const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+async function validateDeliveryRadius(address){
+  const street=String(address?.street||'').trim(),city=String(address?.city||'').trim(),state=String(address?.state||'').trim(),zip=String(address?.zip||'').trim();
+  if(!street||!city||!state||!zip) throw new Error('Complete delivery address is required.');
+  const singleline=[street,city,state,zip].filter(Boolean).join(', ');
+  const url=new URL('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress');
+  url.searchParams.set('address',singleline);
+  url.searchParams.set('benchmark','Public_AR_Current');
+  url.searchParams.set('format','json');
+  const response=await fetch(url.toString(),{headers:{'User-Agent':'Southern Nutrition delivery-area check'}});
+  if(!response.ok) throw new Error('We could not verify that delivery address. Please check it and try again.');
+  const data=await response.json();
+  const match=data?.result?.addressMatches?.[0];
+  const lat=Number(match?.coordinates?.y),lng=Number(match?.coordinates?.x);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)) throw new Error('We could not verify that delivery address. Please check the street, city, state, and ZIP.');
+  const miles=milesBetween(DELIVERY_ORIGIN.lat,DELIVERY_ORIGIN.lng,lat,lng);
+  if(miles>DELIVERY_RADIUS_MILES) throw new Error(`Sorry, that address is about ${miles.toFixed(1)} miles away. Delivery is currently limited to 25 miles from 35660.`);
+  return {miles,matchedAddress:match.matchedAddress||singleline};
+}
+
 async function orderPreview(request,env){
   try{
     if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID)return json({error:'Square is not configured on the server yet.'},503);
     const body=await request.json();
     const requestedTimeError=validateRequestedTime(body.requestedTime);
     if(requestedTimeError)return json({error:requestedTimeError},400);
+    const deliveryCheck=await validateDeliveryRadius(body.deliveryAddress);
     const order=calculateOrder(body.cart,body.tipCents);
     const user=await getSessionUser(request,env);
     const calculated=await calculateSquareOrder(env,order,body,user?.square_customer_id||null);
@@ -610,7 +638,8 @@ async function orderPreview(request,env){
       subtotalBeforeTip:subtotal,
       tax,
       tipCents:order.tipCents,
-      total:subtotal+order.tipCents
+      total:subtotal+order.tipCents,
+      deliveryMiles:Number(deliveryCheck.miles.toFixed(1))
     });
   }catch(e){
     return json({error:e?.message||'Unable to calculate tax.'},400);
@@ -631,7 +660,7 @@ function deliveryWindowText(requestedTime){
   const timeFmt=new Intl.DateTimeFormat('en-US',{timeZone:'UTC',hour:'numeric',minute:'2-digit'});
   return `${dateFmt.format(start)} • ${timeFmt.format(start)}–${timeFmt.format(end)}`;
 }
-async function sendNewOrderEmail(env,{body,order,squareOrder,payment,tax,charged}){
+async function sendNewOrderEmail(env,{body,order,squareOrder,payment,tax,charged,paymentMethod='Card (Square)'}){
   if(!env.EMAIL)return null;
   const addr=body.deliveryAddress||{};
   const customer=body.customer||{};
@@ -642,6 +671,7 @@ async function sendNewOrderEmail(env,{body,order,squareOrder,payment,tax,charged
   const text=[
     'NEW SOUTHERN NUTRITION ORDER','',
     `Delivery: ${window}`,
+    `PAYMENT METHOD: ${paymentMethod}`,
     `Customer: ${`${customer.name||''} ${customer.lastName||''}`.trim()}`,
     `Phone: ${customer.phone||''}`,
     customer.email?`Email: ${customer.email}`:'',
@@ -662,6 +692,7 @@ async function sendNewOrderEmail(env,{body,order,squareOrder,payment,tax,charged
   const html=`<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto">
     <h1 style="margin-bottom:6px">New Southern Nutrition Order</h1>
     <h2 style="margin-top:0">${escHtml(window)}</h2>
+    <p style="font-size:18px"><strong>Payment: ${escHtml(paymentMethod)}</strong></p>
     <p><strong>${escHtml(`${customer.name||''} ${customer.lastName||''}`.trim())}</strong><br>${escHtml(customer.phone||'')}${customer.email?`<br>${escHtml(customer.email)}`:''}</p>
     ${addr.workplace?`<p><strong>Workplace:</strong> ${escHtml(addr.workplace)}</p>`:''}
     <h3>Delivery address</h3><p>${escHtml(address).replace(/\n/g,'<br>')}</p>
@@ -681,6 +712,53 @@ async function sendNewOrderEmail(env,{body,order,squareOrder,payment,tax,charged
   });
 }
 
+
+async function cashOrder(request,env){
+  let reservedSlot='',squareOrder=null;
+  try{
+    if(!env.SQUARE_ACCESS_TOKEN||!env.SQUARE_LOCATION_ID) return json({error:'Square is not configured on the server yet.'},503);
+    const body=await request.json();
+    const requestedTimeError=validateRequestedTime(body.requestedTime);
+    if(requestedTimeError) return json({error:requestedTimeError},400);
+    await validateDeliveryRadius(body.deliveryAddress);
+
+    const slotUser=env.DB?await getSessionUser(request,env):null;
+    if(env.DB){
+      const reserved=await reserveDeliverySlot(env,body.requestedTime,slotUser?.id);
+      if(!reserved) return json({error:'That delivery window was just taken. Please choose another available time.'},409);
+      reservedSlot=body.requestedTime;
+    }
+
+    const order=calculateOrder(body.cart,body.tipCents);
+    const customerPhone=String(body.customer?.phone||'').trim().slice(0,30);
+    if(!String(body.customer?.name||'').trim()||!String(body.customer?.lastName||'').trim()||!customerPhone) throw new Error('First name, last name, and phone are required.');
+
+    const user=slotUser||await getSessionUser(request,env);
+    squareOrder=await createSquareOrder(env,order,body,user?.square_customer_id||null);
+    const orderAmount=Number(squareOrder?.total_money?.amount);
+    if(!squareOrder?.id||!Number.isInteger(orderAmount)||orderAmount<0) throw new Error('Square could not calculate the order total.');
+
+    const tax=Number(squareOrder?.total_tax_money?.amount||0);
+    const charged=orderAmount+order.tipCents;
+    const cashReference=`CASH:${squareOrder.id}`;
+    if(env.DB&&reservedSlot){
+      await env.DB.prepare(`UPDATE delivery_slots SET payment_id=? WHERE id=(SELECT id FROM delivery_slots WHERE slot_start=? AND payment_id IS NULL ORDER BY id DESC LIMIT 1)`).bind(cashReference,reservedSlot).run();
+      reservedSlot='';
+    }
+
+    try{
+      await sendNewOrderEmail(env,{body,order,squareOrder,payment:{id:cashReference},tax,charged,paymentMethod:'CASH — COLLECT AT DELIVERY'});
+    }catch(emailError){
+      console.error('New-order cash email failed',emailError?.code||'',emailError?.message||emailError);
+    }
+    return json({ok:true,orderId:squareOrder.id,amount:charged,subtotal:order.subtotal,tax,tipCents:order.tipCents,discount:order.discount,status:'CASH_DUE'});
+  }catch(e){
+    if(squareOrder) await cancelSquareOrder(env,squareOrder);
+    if(env.DB&&reservedSlot) await releaseDeliverySlot(env,reservedSlot);
+    return json({error:e?.message||'Unable to place cash order.'},400);
+  }
+}
+
 async function payment(request, env){
   let reservedSlot='',squareOrder=null;
   try{
@@ -689,6 +767,7 @@ async function payment(request, env){
     if(!body.sourceId) return json({error:'Missing Square payment token.'},400);
     const requestedTimeError=validateRequestedTime(body.requestedTime);
     if(requestedTimeError) return json({error:requestedTimeError},400);
+    await validateDeliveryRadius(body.deliveryAddress);
 
     const slotUser=env.DB?await getSessionUser(request,env):null;
     if(env.DB){
@@ -745,7 +824,7 @@ async function payment(request, env){
     const charged=orderAmount+order.tipCents;
     let orderEmailId=null;
     try{
-      const sent=await sendNewOrderEmail(env,{body,order,squareOrder,payment:result.payment,tax,charged});
+      const sent=await sendNewOrderEmail(env,{body,order,squareOrder,payment:result.payment,tax,charged,paymentMethod:'Card (Square)'});
       orderEmailId=sent?.messageId||null;
     }catch(emailError){
       console.error('New-order email failed',emailError?.code||'',emailError?.message||emailError);
@@ -789,6 +868,7 @@ export default {
     if(url.pathname==='/api/delivery-slots' && request.method==='GET') return deliverySlots(request,env);
     if(url.pathname==='/api/order-preview' && request.method==='POST') return orderPreview(request,env);
     if(url.pathname==='/api/payment' && request.method==='POST') return payment(request,env);
+    if(url.pathname==='/api/cash-order' && request.method==='POST') return cashOrder(request,env);
     if((url.pathname==='/admin'||url.pathname==='/admin/') && request.method==='GET'){
       const adminUrl=new URL('/admin.html',request.url);
       const response=await env.ASSETS.fetch(new Request(adminUrl,{method:'GET',headers:request.headers}));

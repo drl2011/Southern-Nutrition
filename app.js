@@ -154,10 +154,18 @@ function renderCustomizer(){
   if(item?.coffee){
     const coffeeFlavors=['Caramel','Mocha','House Blend'];
     $('#flavorChoices').innerHTML=coffeeFlavors.map(f=>`<label class="choice-chip ${customizing.flavors[0]===f?'selected':''}"><input type="radio" name="coffeeFlavor" value="${f}" ${customizing.flavors[0]===f?'checked':''}><span>${f}</span></label>`).join('');
-    $$('#flavorChoices input').forEach(i=>i.onchange=()=>{customizing.flavors=[i.value];renderCustomizer();});
+    $$('#flavorChoices input').forEach(i=>i.onchange=()=>{
+      customizing.flavors=[i.value];
+      $$('#flavorChoices .choice-chip').forEach(chip=>chip.classList.toggle('selected',chip.querySelector('input')?.checked));
+      updateCustomizerPrice();
+    });
     const checked=customizing.addons.some(x=>x.id==='whipped-cream');
     $('#addonChoices').innerHTML=`<label class="addon-row ${checked?'selected':''}"><input type="checkbox" value="whipped-cream" ${checked?'checked':''}><span><strong>Add Whipped Cream</strong></span><b>+$1.00</b></label>`;
-    $('#addonChoices input').forEach(i=>i.onchange=()=>{customizing.addons=i.checked?[{id:'whipped-cream',name:'Add Whipped Cream',price:1}]:[];renderCustomizer();});
+    $('#addonChoices input').forEach(i=>i.onchange=()=>{
+      customizing.addons=i.checked?[{id:'whipped-cream',name:'Add Whipped Cream',price:1}]:[];
+      i.closest('.addon-row')?.classList.toggle('selected',i.checked);
+      updateCustomizerPrice();
+    });
     updateCustomizerPrice(); return;
   }
   const selected=new Set(customizing.flavors);
@@ -308,7 +316,7 @@ async function initSquare(){
     const payments=window.Square.payments(cfg.applicationId,cfg.locationId);
     squareCard=await payments.card();
     await squareCard.attach('#card-container');
-    $('#payButton').disabled=false;
+    $('#payButton').disabled=paymentMethod==='card'?false:false;
     $('#squareStatus').textContent=cfg.environment==='production'
       ? 'Secure Square checkout'
       : 'Square test checkout connected';
@@ -327,6 +335,7 @@ function checkoutSummary(){
     `<div class="checkout-line checkout-total"><span>Total</span><strong>${money(orderTotal())}</strong></div>`;
 }
 let squarePreview=null;
+let paymentMethod='card';
 function checkoutSummaryWithTax(){
   if(!squarePreview)return checkoutSummary();
   const base=checkoutSummary().replace(
@@ -334,6 +343,22 @@ function checkoutSummaryWithTax(){
     `<div class="checkout-line"><span>Sales tax</span><strong>${money((squarePreview.tax||0)/100)}</strong></div><div class="checkout-line tip-summary"><span>Tip</span><strong>${money(tipAmount())}</strong></div><div class="checkout-line checkout-total"><span>Total</span><strong>${money(((squarePreview.subtotalBeforeTip||0)+tipAmount())/100)}</strong></div>`
   );
   return base;
+}
+function setPaymentMethod(method){
+  paymentMethod=method==='cash'?'cash':'card';
+  $$('.payment-method').forEach(b=>b.classList.toggle('active',b.dataset.payment===paymentMethod));
+  $('#card-container').classList.toggle('hidden',paymentMethod==='cash');
+  $('#squareStatus').classList.toggle('hidden',paymentMethod==='cash');
+  const btn=$('#payButton');
+  if(paymentMethod==='cash'){
+    btn.disabled=false;
+    btn.textContent='Place cash order';
+    $('#paymentModeNote').textContent='Cash is due when your order is delivered.';
+  }else{
+    btn.disabled=!squareCard;
+    btn.textContent='Pay securely';
+    $('#paymentModeNote').textContent=squareEnvironment==='production'?'Payments are processed securely by Square.':'Test payment mode is currently enabled.';
+  }
 }
 async function refreshSquarePreview(){
   try{
@@ -374,9 +399,43 @@ $$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return
 $('#mobileCartBar').onclick=openCart;
 $('#accountBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
 
-$('#placeOrder').onclick=async()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}const timeError=validateRequestedTime($('#orderTime').value);if(timeError)return alert(timeError);if(currentUser)await saveCurrentAddress();selectedTipCents=0;squarePreview=null;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();$('#paymentMessage').textContent='Calculating sales tax…';const ok=await refreshSquarePreview();if(ok)$('#paymentMessage').textContent='';};
+$('#placeOrder').onclick=async()=>{if(!cart.length)return alert('Add at least one drink first.');const required=[['#deliveryStreet','street address'],['#deliveryCity','city'],['#deliveryState','state'],['#deliveryZip','ZIP code']];for(const [sel,label] of required){if(!$(sel).value.trim())return alert(`Enter your ${label}.`);}const timeError=validateRequestedTime($('#orderTime').value);if(timeError)return alert(timeError);if(currentUser)await saveCurrentAddress();selectedTipCents=0;squarePreview=null;$('#customTip').value='';$$('.tip-btn').forEach(b=>b.classList.remove('active'));$('#checkoutOrder').innerHTML=checkoutSummary();renderAccountState();closeCart();$('#checkoutDialog').showModal();setPaymentMethod('card');$('#paymentMessage').textContent='Calculating sales tax…';const ok=await refreshSquarePreview();if(ok)$('#paymentMessage').textContent='';};
 $('#checkoutClose').onclick=()=>$('#checkoutDialog').close();
-$('#payButton').onclick=async()=>{const timeError=validateRequestedTime($('#orderTime').value);if(timeError){$('#paymentMessage').textContent=timeError;return;}const name=$('#customerName').value.trim(),lastName=$('#customerLastName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();if(!name||!lastName||!phone){$('#paymentMessage').textContent='Enter your first name, last name, and phone number.';return;}if(!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}const btn=$('#payButton');btn.disabled=true;btn.textContent='Processing…';$('#paymentMessage').textContent='';try{const previewOk=await refreshSquarePreview();if(!previewOk)throw new Error('Could not confirm sales tax. Please try again.');const tokenResult=await squareCard.tokenize();if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');const response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,lastName,phone,email},tipCents:selectedTipCents})});const result=await response.json();if(!response.ok){if(response.status===409)loadDeliverySlots();throw new Error(result.error||'Payment failed.');}cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();$('#successMessage').innerHTML=`Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;$('#successDialog').showModal();}catch(e){$('#paymentMessage').textContent=e.message;}finally{btn.disabled=!squareCard;btn.textContent='Pay securely';}};
+$$('.payment-method').forEach(b=>b.onclick=()=>setPaymentMethod(b.dataset.payment));
+
+$('#payButton').onclick=async()=>{
+  const timeError=validateRequestedTime($('#orderTime').value);
+  if(timeError){$('#paymentMessage').textContent=timeError;return;}
+  const name=$('#customerName').value.trim(),lastName=$('#customerLastName').value.trim(),phone=$('#customerPhone').value.trim(),email=$('#customerEmail').value.trim();
+  if(!name||!lastName||!phone){$('#paymentMessage').textContent='Enter your first name, last name, and phone number.';return;}
+  if(paymentMethod==='card'&&!squareCard){$('#paymentMessage').textContent='Square is not configured yet.';return;}
+  const btn=$('#payButton');
+  btn.disabled=true;btn.textContent=paymentMethod==='cash'?'Placing order…':'Processing…';$('#paymentMessage').textContent='';
+  try{
+    const previewOk=await refreshSquarePreview();
+    if(!previewOk)throw new Error('Could not confirm delivery area and sales tax. Please try again.');
+    const common={cart,fulfillment:'delivery',deliveryAddress:getDeliveryAddressFromForm(),requestedTime:$('#orderTime').value,notes:$('#orderNotes').value.trim(),customer:{name,lastName,phone,email},tipCents:selectedTipCents};
+    let response;
+    if(paymentMethod==='cash'){
+      response=await fetch('/api/cash-order',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(common)});
+    }else{
+      const tokenResult=await squareCard.tokenize();
+      if(tokenResult.status!=='OK')throw new Error(tokenResult.errors?.[0]?.message||'Card information could not be tokenized.');
+      response=await fetch('/api/payment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sourceId:tokenResult.token,...common})});
+    }
+    const result=await response.json();
+    if(!response.ok){if(response.status===409)loadDeliverySlots();throw new Error(result.error||(paymentMethod==='cash'?'Order could not be placed.':'Payment failed.'));}
+    cart=[];selectedTipCents=0;saveCart();$('#checkoutDialog').close();
+    $('#successMessage').innerHTML=paymentMethod==='cash'
+      ? `Order placed for <strong>${money(result.amount/100)}</strong>.<br><strong>Cash is due at delivery.</strong>`
+      : `Payment ${squareEnvironment==='sandbox'?'test ':''}completed for <strong>${money(result.amount/100)}</strong>.${result.receiptUrl?`<br><a href="${result.receiptUrl}" target="_blank" rel="noopener">View Square receipt</a>`:''}`;
+    $('#successDialog').showModal();
+  }catch(e){$('#paymentMessage').textContent=e.message;}
+  finally{
+    btn.disabled=paymentMethod==='card'?!squareCard:false;
+    btn.textContent=paymentMethod==='cash'?'Place cash order':'Pay securely';
+  }
+};
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
 renderMenu();renderCart();renderAccountState();bindTipControls();setupDeliverySlots();refreshSession();initSquare();
