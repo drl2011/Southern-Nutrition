@@ -153,10 +153,10 @@ function renderCustomizer(){
   const item=menu.find(x=>x.id===customizing.id);
   if(item?.coffee){
     const coffeeFlavors=['Caramel','Mocha','House Blend'];
-    $('#flavorChoices').innerHTML=coffeeFlavors.map(f=>`<label class="choice-chip ${customizing.flavors[0]===f?'selected':''}"><input type="radio" name="coffeeFlavor" value="${f}" ${customizing.flavors[0]===f?'checked':''}><span>${f}</span></label>`).join('');
-    $$('#flavorChoices input').forEach(i=>i.onchange=()=>{
-      customizing.flavors=[i.value];
-      $$('#flavorChoices .choice-chip').forEach(chip=>chip.classList.toggle('selected',chip.querySelector('input')?.checked));
+    $('#flavorChoices').innerHTML=coffeeFlavors.map(f=>`<button type="button" class="choice-chip coffee-choice ${customizing.flavors[0]===f?'selected':''}" data-coffee="${f}"><span>${f}</span></button>`).join('');
+    $$('#flavorChoices .coffee-choice').forEach(b=>b.onclick=()=>{
+      customizing.flavors=[b.dataset.coffee];
+      $$('#flavorChoices .coffee-choice').forEach(x=>x.classList.toggle('selected',x===b));
       updateCustomizerPrice();
     });
     const checked=customizing.addons.some(x=>x.id==='whipped-cream');
@@ -360,6 +360,27 @@ function setPaymentMethod(method){
     $('#paymentModeNote').textContent=squareEnvironment==='production'?'Payments are processed securely by Square.':'Test payment mode is currently enabled.';
   }
 }
+function setDeliveryStatus(message,state=''){
+  const el=$('#deliveryAreaStatus'); if(!el)return;
+  el.textContent=message; el.className='delivery-area-status '+state;
+}
+async function confirmDeliveryArea(showErrors=false){
+  const a=getDeliveryAddressFromForm();
+  if(!a.street||!a.city||!a.state||!a.zip){
+    setDeliveryStatus('Enter your full delivery address to confirm the 25-mile delivery area.');
+    return null;
+  }
+  setDeliveryStatus('Checking delivery area…','checking');
+  try{
+    const result=await checkDeliveryArea();
+    setDeliveryStatus(`✓ Delivery available — ${result.miles.toFixed(1)} miles from 35660.`,'success');
+    return result;
+  }catch(e){
+    setDeliveryStatus(e.message,'error');
+    if(showErrors) alert(e.message);
+    return null;
+  }
+}
 async function checkDeliveryArea(){
   const response=await fetch('/api/delivery-check',{
     method:'POST',
@@ -421,7 +442,8 @@ $('#placeOrder').onclick=async()=>{
   placeBtn.disabled=true;
   placeBtn.textContent='Checking delivery area…';
   try{
-    const delivery=await checkDeliveryArea();
+    const delivery=await confirmDeliveryArea(true);
+    if(!delivery)return;
     if(currentUser)await saveCurrentAddress();
     selectedTipCents=0;
     squarePreview=null;
@@ -481,6 +503,9 @@ $('#payButton').onclick=async()=>{
 $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onclick=()=>$('#successDialog').close();
 $('#year').textContent=new Date().getFullYear();
 renderMenu();renderCart();renderAccountState();bindTipControls();setupDeliverySlots();refreshSession();initSquare();
+['#deliveryStreet','#deliveryCity','#deliveryState','#deliveryZip'].forEach(sel=>{
+  const el=$(sel); if(el)el.addEventListener('change',()=>confirmDeliveryArea(false));
+});
 
 // V13: Mobile autofill/keyboard focus correction inside the cart drawer.
 // Some mobile browsers scroll the next autofilled field underneath the keyboard.

@@ -159,3 +159,7 @@
 .payment-method{border:1px solid rgba(0,0,0,.15);background:#fff;border-radius:12px;padding:12px 10px;font:inherit;font-weight:700;cursor:pointer}
 .payment-method.active{border-color:#d95772;box-shadow:0 0 0 2px rgba(217,87,114,.12)}
 #card-container.hidden,#squareStatus.hidden{display:none!important}
+
+.delivery-area-status{margin:8px 0 12px;padding:10px 12px;border-radius:10px;background:#f5f5f5;font-size:.9rem;font-weight:700}
+.delivery-area-status.checking{background:#fff7e6}.delivery-area-status.success{background:#edf9f0}.delivery-area-status.error{background:#fff0f0}
+.coffee-choice{appearance:none;-webkit-appearance:none;cursor:pointer;font:inherit}

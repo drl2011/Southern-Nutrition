@@ -615,18 +615,25 @@ async function validateDeliveryRadius(address){
   if(!response.ok) throw new Error('We could not verify that delivery address. Please check it and try again.');
   const data=await response.json();
   const match=data?.result?.addressMatches?.[0];
-  const lat=Number(match?.coordinates?.y),lng=Number(match?.coordinates?.x);
+  let lat=Number(match?.coordinates?.y),lng=Number(match?.coordinates?.x),matchedAddress=match?.matchedAddress||'',approximate=false;
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)){
+    const zipResponse=await fetch(`https://api.zippopotam.us/us/${encodeURIComponent(zip)}`);
+    if(!zipResponse.ok) throw new Error('We could not verify that delivery address. Please check the street, city, state, and ZIP.');
+    const zipData=await zipResponse.json(),place=zipData?.places?.[0];
+    lat=Number(place?.latitude); lng=Number(place?.longitude); approximate=true;
+    matchedAddress=`${city}, ${state} ${zip}`;
+  }
   if(!Number.isFinite(lat)||!Number.isFinite(lng)) throw new Error('We could not verify that delivery address. Please check the street, city, state, and ZIP.');
   const miles=milesBetween(DELIVERY_ORIGIN.lat,DELIVERY_ORIGIN.lng,lat,lng);
   if(miles>DELIVERY_RADIUS_MILES) throw new Error(`Sorry, that address is about ${miles.toFixed(1)} miles away. Delivery is currently limited to 25 miles from 35660.`);
-  return {miles,matchedAddress:match.matchedAddress||singleline};
+  return {miles,matchedAddress:matchedAddress||singleline,approximate};
 }
 
 async function deliveryCheck(request,env){
   try{
     const body=await request.json();
     const result=await validateDeliveryRadius(body.deliveryAddress);
-    return json({ok:true,miles:Number(result.miles.toFixed(1)),matchedAddress:result.matchedAddress});
+    return json({ok:true,miles:Number(result.miles.toFixed(1)),matchedAddress:result.matchedAddress,approximate:!!result.approximate});
   }catch(e){
     return json({error:e?.message||'That address is outside our delivery area.'},400);
   }
