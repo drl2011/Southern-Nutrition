@@ -150,6 +150,8 @@ function startAdd(id){
 }
 
 function renderCustomizer(){
+  const enhanceHeading=$('#enhanceHeading');
+  if(enhanceHeading) enhanceHeading.textContent=customizing.item?.coffee?'Enhance your coffee':'Enhance your tea';
   const item=menu.find(x=>x.id===customizing.id);
   if(item?.coffee){
     const coffeeFlavors=['Caramel','Mocha','House Blend'];
