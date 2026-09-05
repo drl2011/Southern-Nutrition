@@ -39,13 +39,54 @@ async function saveDeliveryAvailability(){
   finally{toggle.disabled=false;}
 }
 
+async function resizeGalleryImage(file){
+  const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(new Error('Unable to read that photo.'));r.readAsDataURL(file);});
+  const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=()=>reject(new Error('Unable to open that photo.'));i.src=dataUrl;});
+  const make=(maxDim,quality)=>{
+    const scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+    return canvas.toDataURL('image/jpeg',quality);
+  };
+  let out=make(1200,.78); if(out.length>900000)out=make(900,.68); if(out.length>900000)out=make(720,.62);
+  if(out.length>900000)throw new Error(`${file.name} is too large. Try a smaller photo.`);
+  return out;
+}
+function renderGalleryAdmin(photos){
+  const grid=$('adminGalleryGrid');
+  grid.innerHTML=photos.length?photos.map(p=>`<article class="admin-gallery-photo"><img src="${p.imageData}" alt="${esc(p.caption||'Gallery photo')}"><div class="admin-gallery-photo-body"><small>${esc(p.caption||'No caption')}</small><button class="btn ghost admin-gallery-delete" type="button" data-delete-photo="${p.id}">Delete</button></div></article>`).join(''):'<div class="admin-empty">No gallery photos yet.</div>';
+  grid.querySelectorAll('[data-delete-photo]').forEach(btn=>btn.addEventListener('click',async()=>{
+    if(!confirm('Delete this photo from the website gallery?'))return;
+    btn.disabled=true; $('galleryMessage').textContent='Deleting photo…';
+    try{await api(`/api/admin/gallery/${btn.dataset.deletePhoto}`,{method:'DELETE'});$('galleryMessage').textContent='Photo deleted.';await loadGalleryAdmin();}
+    catch(e){$('galleryMessage').textContent=e.message;btn.disabled=false;}
+  }));
+}
+async function loadGalleryAdmin(){
+  try{const data=await api('/api/admin/gallery');renderGalleryAdmin(data.photos||[]);}
+  catch(e){$('galleryMessage').textContent=e.message;}
+}
+async function uploadGalleryPhotos(e){
+  e.preventDefault();const files=[...$('galleryFiles').files];if(!files.length)return;
+  const button=$('galleryUploadButton'),caption=$('galleryCaption').value.trim();button.disabled=true;
+  try{
+    for(let i=0;i<files.length;i++){
+      $('galleryMessage').textContent=`Preparing photo ${i+1} of ${files.length}…`;
+      const imageData=await resizeGalleryImage(files[i]);
+      $('galleryMessage').textContent=`Uploading photo ${i+1} of ${files.length}…`;
+      await api('/api/admin/gallery',{method:'POST',body:JSON.stringify({imageData,caption})});
+    }
+    $('galleryFiles').value='';$('galleryCaption').value='';$('galleryMessage').textContent=`Uploaded ${files.length} photo${files.length===1?'':'s'}.`;await loadGalleryAdmin();
+  }catch(e){$('galleryMessage').textContent=e.message;}finally{button.disabled=false;}
+}
+
 async function checkAccess(){
   show(loading); logoutButton.classList.add('hidden');
   try{
     const data=await api('/api/admin/me');
     if(!data.authenticated){show(loginView);return;}
     if(!data.admin){$('adminDeniedMessage').textContent=`${data.user?.email||data.user?.phone||'This account'} is signed in, but it does not have admin permission.`;logoutButton.classList.remove('hidden');show(deniedView);return;}
-    logoutButton.classList.remove('hidden');show(dashboard);await Promise.all([loadCustomers(),loadDeliveryAvailability()]);
+    logoutButton.classList.remove('hidden');show(dashboard);await Promise.all([loadCustomers(),loadDeliveryAvailability(),loadGalleryAdmin()]);
   }catch(e){$('adminLoading').innerHTML=`<strong>Unable to check admin access.</strong><p>${esc(e.message)}</p>`;}
 }
 
@@ -92,3 +133,4 @@ logoutButton.addEventListener('click',logout);$('adminDeniedLogout').addEventLis
 checkAccess();
 
 $('deliveryAvailableToggle').addEventListener('change',saveDeliveryAvailability);
+$('galleryUploadForm').addEventListener('submit',uploadGalleryPhotos);

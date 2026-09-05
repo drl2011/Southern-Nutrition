@@ -1,13 +1,53 @@
 const MENU = {
   'build-your-own': { name: 'Build Your Own Loaded Tea', tea: true },
-  'hot-mess': { name: 'Hot Mess', tea: true },
-  'southern-paradise': { name: 'Southern Paradise', tea: true },
+  'southern-belle': { name: 'Southern Belle', tea: true },
+  'georgia-peach': { name: 'Georgia Peach', tea: true },
+  'berry-bliss': { name: 'Berry Bliss', tea: true },
+  'watermelon-sugar': { name: 'Watermelon Sugar', tea: true },
   'cherry-bombshell': { name: 'Cherry Bombshell', tea: true },
-  'brb': { name: 'BRB — Back Road Breeze', tea: true },
+  'strawberry-crush': { name: 'Strawberry Crush', tea: true },
+  'grape-limeade': { name: 'Grape Limeade', tea: true },
+  'sour-apple': { name: 'Sour Apple', tea: true },
+  'sour-blue-blast': { name: 'Sour Blue Blast', tea: true },
+  'sour-cherry': { name: 'Sour Cherry', tea: true },
+  'sour-watermelon': { name: 'Sour Watermelon', tea: true },
+  'sour-grape': { name: 'Sour Grape', tea: true },
+  'sour-patch-kid': { name: 'Sour Patch Kid', tea: true },
+  'sour-power': { name: 'Sour Power', tea: true },
+  'sour-twist': { name: 'Sour Twist', tea: true },
+  'extreme-sour': { name: 'Extreme Sour', tea: true },
+  'tropical-paradise': { name: 'Tropical Paradise', tea: true },
+  'hawaiian-sunset': { name: 'Hawaiian Sunset', tea: true },
+  'mango-tango': { name: 'Mango Tango', tea: true },
+  'sunshine': { name: 'Sunshine', tea: true },
+  'pina-colada': { name: 'Pina Colada', tea: true },
+  'island-breeze': { name: 'Island Breeze', tea: true },
+  'paradise-punch': { name: 'Paradise Punch', tea: true },
+  'golden-hour': { name: 'Golden Hour', tea: true },
+  'bahama-breeze': { name: 'Bahama Breeze', tea: true },
+  'margarita': { name: 'Margarita', tea: true },
+  'cantaloupe-crush': { name: 'Cantaloupe Crush', tea: true },
+  'southern-sunset': { name: 'Southern Sunset', tea: true },
+  'just-peachy': { name: 'Just Peachy', tea: true },
+  'apple-orchard': { name: 'Apple Orchard', tea: true },
+  'bombshell': { name: 'Bombshell', tea: true },
+  'lucky-charm': { name: 'Lucky Charm', tea: true },
+  'very-berry': { name: 'Very Berry', tea: true },
+  'tutti-frutti': { name: 'Tutti Frutti', tea: true },
+  'beach-day': { name: 'Beach Day', tea: true },
+  'blue-dream': { name: 'Blue Dream', tea: true },
+  'ocean-breeze': { name: 'Ocean Breeze', tea: true },
+  'electric-blue': { name: 'Electric Blue', tea: true },
+  'bahama-blue': { name: 'Bahama Blue', tea: true },
+  'shark-attack': { name: 'Shark Attack', tea: true },
+  'blue-razz': { name: 'Blue Razz', tea: true },
+  'cotton-candy': { name: 'Cotton Candy', tea: true },
+  'bubble-berry': { name: 'Bubble Berry', tea: true },
   'iced-protein-coffee': { name: 'Iced Protein Coffee', coffee: true }
 };
 const ADDONS = { fiber:350, collagen:350, aloe:100, liftoff:350, 'whipped-cream':100 };
-const ALLOWED_FLAVORS = new Set(['Cherry','Mango','Strawberry','Piña Colada','Margarita','Melon','Blackberry','Orange','Grape','Pineapple','Lemonade','Watermelon']);
+const INCLUDED_FLAVOR_COUNTS = {'grape-limeade':3,'hawaiian-sunset':3,'mango-tango':3,'sunshine':3,'island-breeze':3,'paradise-punch':3,'margarita':3,'southern-sunset':3,'bombshell':3,'tutti-frutti':3,'beach-day':3,'beth-love':3};
+const ALLOWED_FLAVORS = new Set(['Strawberry', 'Peach', 'Mango', 'Blueberry', 'Watermelon', 'Cherry', 'Blue Blast', 'Grape', 'Lime', 'Pineapple', 'Orange', 'Cream', 'Lemon', 'Cantaloupe', 'Raspberry', 'Green Apple (Warhead Sour)', 'Blue Blast (Warhead Sour)', 'Cherry (Warhead Sour)', 'Watermelon (Warhead Sour)', 'Grape (Warhead Sour)', 'Sour Watermelon', 'Sour Blue Blast', 'Sour Apple', 'Sour Cherry', 'Apple (Warhead Sour)', 'Caramel', 'Rainbow Candy']);
 const SESSION_COOKIE = 'sn_session';
 const SESSION_DAYS = 30;
 const json=(data,status=200,headers={})=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','Cache-Control':'no-store',...headers}});
@@ -22,7 +62,8 @@ function calculateOrder(cart, requestedTipCents){
     if(product.tea){
       const flavors=Array.isArray(line.flavors)?line.flavors.filter(f=>ALLOWED_FLAVORS.has(f)):[];
       if(line.id==='build-your-own'&&!flavors.length) throw new Error('Choose at least one flavor for the custom tea.');
-      unit+=Math.max(0,flavors.length-2)*100;
+      const included=line.id==='build-your-own'?2:(INCLUDED_FLAVOR_COUNTS[line.id]||2);
+      unit+=Math.max(0,flavors.length-included)*100;
       if(flavors.length) details.push(flavors.join(' + '));
       const addonIds=Array.isArray(line.addons)?[...new Set(line.addons.map(a=>a?.id).filter(id=>ADDONS[id]))]:[];
       for(const id of addonIds) unit+=ADDONS[id];
@@ -301,6 +342,55 @@ async function adminDeliveryAvailability(request,env){
     }
     return json({available:await getDeliveryAvailability(env)});
   }catch(e){console.log('admin delivery availability error',e);return json({error:'Unable to update delivery availability.'},500);}
+}
+
+async function ensureGallerySchema(env){
+  if(!env.DB) return false;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS gallery_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_data TEXT NOT NULL,
+    caption TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+  return true;
+}
+async function publicGallery(env){
+  if(!env.DB) return json({photos:[]});
+  try{
+    await ensureGallerySchema(env);
+    const rows=await env.DB.prepare(`SELECT id,image_data,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
+    return json({photos:(rows.results||[]).map(r=>({id:r.id,imageData:r.image_data,caption:r.caption||'',createdAt:r.created_at}))});
+  }catch(e){console.log('gallery load error',e);return json({photos:[]});}
+}
+async function adminGallery(request,env,photoId=null){
+  if(!env.DB) return json({error:'Customer database is not connected.'},503);
+  try{
+    const access=await adminSession(request,env);
+    if(!access.user) return json({error:'Log in to continue.'},401);
+    if(!access.admin) return json({error:'Admin access required.'},403);
+    await ensureGallerySchema(env);
+    if(request.method==='GET'){
+      const rows=await env.DB.prepare(`SELECT id,image_data,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
+      return json({photos:(rows.results||[]).map(r=>({id:r.id,imageData:r.image_data,caption:r.caption||'',createdAt:r.created_at}))});
+    }
+    if(request.method==='POST'){
+      const count=await env.DB.prepare(`SELECT COUNT(*) AS n FROM gallery_photos`).first();
+      if(Number(count?.n||0)>=15) return json({error:'The gallery can hold up to 15 photos. Delete one before adding another.'},400);
+      const body=await request.json();
+      const imageData=String(body.imageData||'');
+      const caption=String(body.caption||'').trim().slice(0,80);
+      if(!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(imageData)) return json({error:'Choose a JPG, PNG, or WebP photo.'},400);
+      if(imageData.length>950000) return json({error:'That photo is still too large after resizing. Please choose a smaller photo.'},400);
+      const result=await env.DB.prepare(`INSERT INTO gallery_photos(image_data,caption) VALUES(?,?)`).bind(imageData,caption).run();
+      return json({ok:true,id:result.meta?.last_row_id||null});
+    }
+    if(request.method==='DELETE'&&photoId){
+      const id=Number(photoId); if(!Number.isInteger(id)||id<1) return json({error:'Invalid photo.'},400);
+      await env.DB.prepare(`DELETE FROM gallery_photos WHERE id=?`).bind(id).run();
+      return json({ok:true});
+    }
+    return json({error:'Unsupported gallery request.'},405);
+  }catch(e){console.log('admin gallery error',e);return json({error:'Unable to update the photo gallery.'},500);}
 }
 
 async function adminMe(request,env){
@@ -930,6 +1020,9 @@ export default {
     if(url.pathname==='/api/auth/logout' && request.method==='POST') return logout(request,env);
     if(url.pathname==='/api/auth/me' && request.method==='GET') return me(request,env);
     if(url.pathname==='/api/account/address' && (request.method==='GET'||request.method==='PUT')) return savedAddress(request,env);
+    if(url.pathname==='/api/gallery' && request.method==='GET') return publicGallery(env);
+    if(url.pathname==='/api/admin/gallery' && (request.method==='GET'||request.method==='POST')) return adminGallery(request,env);
+    if(url.pathname.startsWith('/api/admin/gallery/') && request.method==='DELETE') return adminGallery(request,env,url.pathname.split('/').pop());
     if(url.pathname==='/api/delivery-availability' && request.method==='GET') return deliveryAvailabilityPublic(env);
     if(url.pathname==='/api/admin/delivery-availability' && (request.method==='GET'||request.method==='PUT')) return adminDeliveryAvailability(request,env);
     if(url.pathname==='/api/admin/me' && request.method==='GET') return adminMe(request,env);

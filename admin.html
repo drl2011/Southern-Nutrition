@@ -59,6 +59,18 @@
         </label>
         <p id="deliveryAvailabilityMessage" class="form-note" role="status"></p>
       </section>
+      <section class="admin-card admin-gallery-manager">
+        <div class="admin-toolbar">
+          <div><span class="eyebrow">Website photos</span><h2>Scrolling photo gallery</h2><p class="admin-muted">Upload photos here and they will appear in the scrolling gallery near the bottom of the website.</p></div>
+        </div>
+        <form id="galleryUploadForm" class="admin-gallery-upload">
+          <label>Choose photos<input id="galleryFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
+          <label>Caption <span class="admin-label-note">(optional — used for every photo in this upload)</span><input id="galleryCaption" maxlength="80" placeholder="Fresh delivery, new flavor, office order..." /></label>
+          <button class="btn primary" id="galleryUploadButton" type="submit">Upload photo(s)</button>
+        </form>
+        <p id="galleryMessage" class="form-note" role="status"></p>
+        <div id="adminGalleryGrid" class="admin-gallery-grid"></div>
+      </section>
       <div class="admin-stats">
         <article class="admin-stat"><span>Total accounts</span><strong id="statTotal">—</strong></article>
         <article class="admin-stat"><span>Square linked</span><strong id="statSquare">—</strong></article>
