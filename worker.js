@@ -48,6 +48,7 @@ const MENU = {
 const ADDONS = { fiber:350, collagen:350, aloe:100, liftoff:400, 'whipped-cream':100 };
 const INCLUDED_FLAVOR_COUNTS = {'grape-limeade':3,'hawaiian-sunset':3,'mango-tango':3,'sunshine':3,'island-breeze':3,'paradise-punch':3,'margarita':3,'southern-sunset':3,'bombshell':3,'tutti-frutti':3,'beach-day':3,'beth-love':3};
 const ALLOWED_FLAVORS = new Set(['Strawberry', 'Peach', 'Mango', 'Blueberry', 'Watermelon', 'Cherry', 'Blue Blast', 'Grape', 'Lime', 'Pineapple', 'Orange', 'Cream', 'Lemon', 'Cantaloupe', 'Raspberry', 'Green Apple (Warhead Sour)', 'Blue Blast (Warhead Sour)', 'Cherry (Warhead Sour)', 'Watermelon (Warhead Sour)', 'Grape (Warhead Sour)', 'Sour Watermelon', 'Sour Blue Blast', 'Sour Apple', 'Sour Cherry', 'Apple (Warhead Sour)', 'Caramel', 'Rainbow Candy']);
+const PUBLIC_MENU_ONLY = true; // Public website is informational only; commerce code is preserved but disabled.
 const SESSION_COOKIE = 'sn_session';
 const SESSION_DAYS = 30;
 const json=(data,status=200,headers={})=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','Cache-Control':'no-store',...headers}});
@@ -1030,6 +1031,7 @@ export default {
     if(url.pathname.startsWith('/api/admin/users/') && request.method==='PATCH') return adminUpdateUser(request,env,url.pathname.split('/').pop());
     if(url.pathname==='/api/delivery-slots' && request.method==='GET') return deliverySlots(request,env);
     if(url.pathname==='/api/delivery-check' && request.method==='POST') return deliveryCheck(request,env);
+    if(PUBLIC_MENU_ONLY && ['/api/order-preview','/api/payment','/api/cash-order'].includes(url.pathname)) return json({error:'Online purchasing is not available. Please call or text Southern Nutrition for delivery.'},403);
     if(url.pathname==='/api/order-preview' && request.method==='POST') return orderPreview(request,env);
     if(url.pathname==='/api/payment' && request.method==='POST') return payment(request,env);
     if(url.pathname==='/api/cash-order' && request.method==='POST') return cashOrder(request,env);

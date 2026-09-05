@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="styles.css" />
   <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
 </head>
-<body>
+<body class="public-menu-mode">
   <div class="contact-bar"><a href="tel:+12055492444">☎ Call (205) 549-2444</a><span>•</span><a href="sms:+12055492444">Text us</a><span>•</span><a href="https://www.facebook.com/share/1E82JnCDBy/?mibextid=wwXIfr" target="_blank" rel="noopener">Facebook</a></div>
   <header class="site-header">
     <a class="brand" href="#top" aria-label="Southern Nutrition home">
@@ -20,8 +20,7 @@
     </a>
     <nav>
       <a href="#menu">Menu</a><a href="#delivery">Delivery</a>
-      <button class="account-btn" id="accountBtn">Log in</button>
-      <button class="cart-btn" id="cartBtn">Cart <span id="cartCount">0</span></button>
+      <a class="header-text-btn" href="sms:+12055492444">Text for delivery</a>
     </nav>
   </header>
 
@@ -30,8 +29,8 @@
       <div class="hero-copy">
         <span class="eyebrow">Local delivery • Every day • 6 AM–6 PM</span>
         <h1>Big flavor.<br><span>Delivered.</span></h1>
-        <p>Loaded teas and iced coffee made fresh to order and delivered. Regular 32 oz $10 • Jumbo 40 oz $12.</p>
-        <div class="hero-actions"><a class="btn primary" href="#menu">Order now</a><a class="btn ghost" href="#delivery">How delivery works</a></div>
+        <p>Browse our loaded tea and iced protein coffee menu, then call or text us for local delivery.</p>
+        <div class="hero-actions"><a class="btn primary" href="sms:+12055492444">Text for delivery</a><a class="btn ghost" href="tel:+12055492444">Call (205) 549-2444</a></div>
         <div class="trust-row"><span>⚡ Made fresh</span><span>🚗 Local delivery</span></div>
       </div>
       <div class="hero-art" aria-hidden="true">
@@ -52,12 +51,16 @@
     </section>
 
     <section class="split section" id="delivery">
-      <div class="panel dark">
-        <span class="eyebrow">Delivery without the hassle</span><h2>We bring the drinks to you.</h2>
-        <p>Everything is delivery. Order for yourself, your family, or the whole workplace and we’ll bring it to you. Delivery minimum and service area can be adjusted as the business grows.</p>
-        <ul class="checklist"><li>Schedule your delivery</li><li>Order for yourself or a whole workplace</li><li>Pay securely online with Square</li></ul>
+      <div class="panel dark delivery-callout">
+        <span class="eyebrow">Local delivery • Every day • 6 AM–6 PM</span><h2>See something you like?</h2>
+        <p>Call or text Southern Nutrition for delivery details and availability. We can help with individual, family, and workplace deliveries.</p>
+        <div class="delivery-buttons"><a class="btn primary" href="sms:+12055492444">💬 Text us</a><a class="btn ghost light-ghost" href="tel:+12055492444">☎ Call (205) 549-2444</a></div>
       </div>
-      <div class="panel light"><span class="eyebrow">Built for group orders</span><h3>Office order? Make one stop count.</h3><p>Put multiple drinks under one delivery and make workplace delivery fast.</p><div class="mini-card"><strong>10+ Drink Savings</strong><span>Order 10 or more drinks</span><b>Save $1 on every drink</b></div></div>
+      <div class="panel light delivery-map-card">
+        <span class="eyebrow">Delivery area</span><h3>Serving the 35660 area</h3>
+        <div class="service-map" aria-label="Illustration of Southern Nutrition local delivery area"><div class="map-ring ring-outer"></div><div class="map-ring ring-inner"></div><div class="map-pin">SN</div><span class="map-label north">Local delivery</span><span class="map-label south">Call or text to confirm your address</span></div>
+        <p class="map-note">Our delivery area is generally within about 25 miles of 35660. Call or text us to confirm delivery to your location.</p>
+      </div>
     </section>
 
     <section class="section gallery-section hidden" id="gallerySection">
@@ -68,7 +71,7 @@
       <div class="gallery-track" id="galleryTrack" aria-label="Southern Nutrition photo gallery"></div>
     </section>
 
-    <section class="section faq"><span class="eyebrow">Good to know</span><h2>Frequently asked</h2><details><summary>When do you deliver?</summary><p>We deliver every day from 6 AM to 6 PM. Delivery zones can be adjusted as the business grows.</p></details><details><summary>Can I place a group order?</summary><p>Yes. Add multiple drinks to one cart and use one workplace or delivery address. Orders of 10 or more drinks automatically get $1 off every drink; add-ons remain regular price.</p></details><details><summary>How much caffeine is in a loaded tea?</summary><p>Caffeine varies by recipe and add-ons. Loaded teas contain caffeine. Selecting Extra Liftoff adds additional caffeine; check the product labeling and ask us if you need exact amounts for a specific drink.</p></details></section>
+    <section class="section faq"><span class="eyebrow">Good to know</span><h2>Frequently asked</h2><details><summary>When do you deliver?</summary><p>Delivery is available every day from 6 AM to 6 PM. Call or text us to confirm availability for your location.</p></details><details><summary>Do you deliver to workplaces or groups?</summary><p>Yes. Call or text us at (205) 549-2444 and we can help coordinate a workplace or group delivery.</p></details><details><summary>How much caffeine is in a loaded tea?</summary><p>Caffeine varies by recipe. Loaded teas contain caffeine; ask us if you need exact information for a specific drink.</p></details></section>
   </main>
 
   <footer><div class="brand footer-brand"><span class="brand-mark">SN</span><span><strong>Southern Nutrition</strong><small>GetSouthernNutrition.com</small></span></div><div class="footer-contact"><a href="tel:+12055492444">(205) 549-2444</a><a href="sms:+12055492444">Text us</a><a href="https://www.facebook.com/share/1E82JnCDBy/?mibextid=wwXIfr" target="_blank" rel="noopener">Facebook</a></div><p>© <span id="year"></span> Southern Nutrition. All rights reserved.</p></footer>
@@ -187,6 +190,7 @@
     <button class="dialog-close" id="successClose">×</button><h2>Order received 🎉</h2><p id="successMessage"></p><button class="btn primary full" id="successDone">Done</button>
   </dialog>
 
+  <div class="public-contact-bar"><a href="tel:+12055492444">☎ Call</a><a href="sms:+12055492444">💬 Text for delivery</a></div>
   <script src="app.js"></script>
 </body>
 </html>

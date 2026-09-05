@@ -185,12 +185,10 @@ function renderMenu(filter='all'){
     <div class="menu-category-grid">${group.items.map(x=>`<article class="menu-card menu-list-card ${x.comingSoon?'coming-soon-card':''}">
       ${x.image?`<div class="drink-art photo compact-photo"><img src="${x.image}" alt="${x.name}"></div>`:''}
       <div class="menu-body"><div class="menu-name-line"><h3>${x.name}</h3>${x.badge?`<span class="new-badge">${x.badge}</span>`:''}</div><p>${x.desc}</p>
-      ${x.comingSoon?'<div class="coming-soon-pill">Coming soon</div>':`<div class="price-row"><span class="price">32 oz $10 • 40 oz $12</span><button class="add-btn" data-id="${x.id}">Customize</button></div>`}
+      ${x.comingSoon?'<div class="coming-soon-pill">Coming soon</div>':'<div class="menu-contact-note">Call or text for delivery</div>'}
       </div></article>`).join('')}</div>
   </section>`).join('');
-  $$('.add-btn').forEach(b=>b.onclick=()=>startAdd(b.dataset.id));
 }
-
 function startAdd(id){
   const item=menu.find(x=>x.id===id); if(!item)return;
   customizing={id:item.id,size:'regular',flavors:[...(item.flavors||[])],addons:[]};
