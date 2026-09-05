@@ -573,7 +573,7 @@ async function loadGallery(){
     const r=await fetch('/api/gallery',{cache:'no-store'}); const data=await r.json();
     const photos=Array.isArray(data.photos)?data.photos:[];
     if(!photos.length){if(empty)empty.classList.remove('hidden');return;}
-    track.innerHTML=photos.map(p=>`<figure class="gallery-slide"><img src="${p.imageData}" alt="${p.caption||'Southern Nutrition photo'}" loading="lazy">${p.caption?`<figcaption>${p.caption}</figcaption>`:''}</figure>`).join('');
+    track.innerHTML=photos.map(p=>`<figure class="gallery-slide"><img src="${p.imageUrl}" alt="${p.caption||'Southern Nutrition photo'}" loading="lazy">${p.caption?`<figcaption>${p.caption}</figcaption>`:''}</figure>`).join('');
     if(empty)empty.classList.add('hidden');
     let timer=setInterval(()=>{
       if(track.scrollWidth<=track.clientWidth+10)return;

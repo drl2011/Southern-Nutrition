@@ -359,9 +359,26 @@ async function publicGallery(env){
   if(!env.DB) return json({photos:[]});
   try{
     await ensureGallerySchema(env);
-    const rows=await env.DB.prepare(`SELECT id,image_data,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
-    return json({photos:(rows.results||[]).map(r=>({id:r.id,imageData:r.image_data,caption:r.caption||'',createdAt:r.created_at}))});
+    const rows=await env.DB.prepare(`SELECT id,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
+    return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))});
   }catch(e){console.log('gallery load error',e);return json({photos:[]});}
+}
+async function publicGalleryImage(env,photoId){
+  if(!env.DB) return new Response('Not found',{status:404});
+  try{
+    await ensureGallerySchema(env);
+    const id=Number(photoId);
+    if(!Number.isInteger(id)||id<1) return new Response('Not found',{status:404});
+    const row=await env.DB.prepare(`SELECT image_data FROM gallery_photos WHERE id=?`).bind(id).first();
+    const data=String(row?.image_data||'');
+    const match=data.match(/^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/i);
+    if(!match) return new Response('Not found',{status:404});
+    const subtype=match[1].toLowerCase()==='jpg'?'jpeg':match[1].toLowerCase();
+    const raw=atob(match[2]);
+    const bytes=new Uint8Array(raw.length);
+    for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+    return new Response(bytes,{headers:{'content-type':`image/${subtype}`,'cache-control':'public, max-age=3600'}});
+  }catch(e){console.log('gallery image error',e);return new Response('Not found',{status:404});}
 }
 async function adminGallery(request,env,photoId=null){
   if(!env.DB) return json({error:'Customer database is not connected.'},503);
@@ -371,8 +388,8 @@ async function adminGallery(request,env,photoId=null){
     if(!access.admin) return json({error:'Admin access required.'},403);
     await ensureGallerySchema(env);
     if(request.method==='GET'){
-      const rows=await env.DB.prepare(`SELECT id,image_data,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
-      return json({photos:(rows.results||[]).map(r=>({id:r.id,imageData:r.image_data,caption:r.caption||'',createdAt:r.created_at}))});
+      const rows=await env.DB.prepare(`SELECT id,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
+      return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))});
     }
     if(request.method==='POST'){
       const count=await env.DB.prepare(`SELECT COUNT(*) AS n FROM gallery_photos`).first();
@@ -1022,6 +1039,7 @@ export default {
     if(url.pathname==='/api/auth/me' && request.method==='GET') return me(request,env);
     if(url.pathname==='/api/account/address' && (request.method==='GET'||request.method==='PUT')) return savedAddress(request,env);
     if(url.pathname==='/api/gallery' && request.method==='GET') return publicGallery(env);
+    if(url.pathname.startsWith('/api/gallery/') && url.pathname.endsWith('/image') && request.method==='GET') return publicGalleryImage(env,url.pathname.split('/')[3]);
     if(url.pathname==='/api/admin/gallery' && (request.method==='GET'||request.method==='POST')) return adminGallery(request,env);
     if(url.pathname.startsWith('/api/admin/gallery/') && request.method==='DELETE') return adminGallery(request,env,url.pathname.split('/').pop());
     if(url.pathname==='/api/delivery-availability' && request.method==='GET') return deliveryAvailabilityPublic(env);

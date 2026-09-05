@@ -54,7 +54,7 @@ async function resizeGalleryImage(file){
 }
 function renderGalleryAdmin(photos){
   const grid=$('adminGalleryGrid');
-  grid.innerHTML=photos.length?photos.map(p=>`<article class="admin-gallery-photo"><img src="${p.imageData}" alt="${esc(p.caption||'Gallery photo')}"><div class="admin-gallery-photo-body"><small>${esc(p.caption||'No caption')}</small><button class="btn ghost admin-gallery-delete" type="button" data-delete-photo="${p.id}">Delete</button></div></article>`).join(''):'<div class="admin-empty">No gallery photos yet.</div>';
+  grid.innerHTML=photos.length?photos.map(p=>`<article class="admin-gallery-photo"><img src="${p.imageUrl}" alt="${esc(p.caption||'Gallery photo')}"><div class="admin-gallery-photo-body"><small>${esc(p.caption||'No caption')}</small><button class="btn ghost admin-gallery-delete" type="button" data-delete-photo="${p.id}">Delete</button></div></article>`).join(''):'<div class="admin-empty">No gallery photos yet.</div>';
   grid.querySelectorAll('[data-delete-photo]').forEach(btn=>btn.addEventListener('click',async()=>{
     if(!confirm('Delete this photo from the website gallery?'))return;
     btn.disabled=true; $('galleryMessage').textContent='Deleting photo…';
