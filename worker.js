@@ -360,7 +360,7 @@ async function publicGallery(env){
   try{
     await ensureGallerySchema(env);
     const rows=await env.DB.prepare(`SELECT id,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
-    return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))});
+    return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))},{headers:{'Cache-Control':'no-store, no-cache, must-revalidate'}});
   }catch(e){console.log('gallery load error',e);return json({photos:[]});}
 }
 async function publicGalleryImage(env,photoId){
@@ -389,7 +389,7 @@ async function adminGallery(request,env,photoId=null){
     await ensureGallerySchema(env);
     if(request.method==='GET'){
       const rows=await env.DB.prepare(`SELECT id,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
-      return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))});
+      return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))},{headers:{'Cache-Control':'no-store, no-cache, must-revalidate'}});
     }
     if(request.method==='POST'){
       const count=await env.DB.prepare(`SELECT COUNT(*) AS n FROM gallery_photos`).first();
@@ -1038,7 +1038,7 @@ export default {
     if(url.pathname==='/api/auth/logout' && request.method==='POST') return logout(request,env);
     if(url.pathname==='/api/auth/me' && request.method==='GET') return me(request,env);
     if(url.pathname==='/api/account/address' && (request.method==='GET'||request.method==='PUT')) return savedAddress(request,env);
-    if(url.pathname==='/api/gallery' && request.method==='GET') return publicGallery(env);
+    if((url.pathname==='/api/gallery'||url.pathname==='/api/gallery-live') && request.method==='GET') return publicGallery(env);
     if(url.pathname.startsWith('/api/gallery/') && url.pathname.endsWith('/image') && request.method==='GET') return publicGalleryImage(env,url.pathname.split('/')[3]);
     if(url.pathname==='/api/admin/gallery' && (request.method==='GET'||request.method==='POST')) return adminGallery(request,env);
     if(url.pathname.startsWith('/api/admin/gallery/') && request.method==='DELETE') return adminGallery(request,env,url.pathname.split('/').pop());

@@ -9,7 +9,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=20260904-gallery3" />
-  <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
 </head>
 <body class="public-menu-mode">
   <div class="contact-bar"><a href="tel:+12055492444">☎ Call (205) 549-2444</a><span>•</span><a href="sms:+12055492444">Text us</a><span>•</span><a href="https://www.facebook.com/share/1E82JnCDBy/?mibextid=wwXIfr" target="_blank" rel="noopener">Facebook</a></div>
@@ -71,121 +70,7 @@
 
   <footer><div class="brand footer-brand"><span class="brand-mark">SN</span><span><strong>Southern Nutrition</strong><small>GetSouthernNutrition.com</small></span></div><div class="footer-contact"><a href="tel:+12055492444">(205) 549-2444</a><a href="sms:+12055492444">Text us</a><a href="https://www.facebook.com/share/1E82JnCDBy/?mibextid=wwXIfr" target="_blank" rel="noopener">Facebook</a></div><p>© <span id="year"></span> Southern Nutrition. All rights reserved.</p></footer>
 
-  <aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
-    <div class="cart-head"><h2>Your order</h2><button id="closeCart" aria-label="Close cart">×</button></div>
-    <div id="cartItems" class="cart-items"></div>
-    <div class="cart-summary">
-      <div id="groupDiscountNotice" class="group-discount-notice"><strong>Office & Group Savings</strong><span>Add 10 drinks to save $1 on every drink.</span></div><div><span>Subtotal</span><strong id="cartSubtotal">$0.00</strong></div>
-      <div class="delivery-only-badge">🚗 Delivery order</div>
-      <label>Street address<input id="deliveryStreet" autocomplete="street-address" placeholder="123 Main St" required /></label>
-      <label>Apartment / Unit <span class="optional">(optional)</span><input id="deliveryUnit" autocomplete="address-line2" placeholder="Apt, suite, unit" /></label>
-      <div class="address-row"><label>City<input id="deliveryCity" autocomplete="address-level2" required /></label><label>State<input id="deliveryState" autocomplete="address-level1" value="AL" maxlength="2" required /></label><label>ZIP<input id="deliveryZip" autocomplete="postal-code" inputmode="numeric" required /></label></div><div id="deliveryAreaStatus" class="delivery-area-status">Enter your full delivery address to confirm the 25-mile delivery area.</div>
-      <label>Business / Workplace <span class="optional">(optional)</span><input id="workplaceName" placeholder="Office, plant, salon, etc." /></label>
-      <label>Delivery instructions <span class="optional">(optional)</span><textarea id="deliveryInstructions" placeholder="Front desk, gate instructions, where to meet you, etc."></textarea></label>
-      <label>Delivery date<input id="deliveryDate" type="date" required /></label>
-            <label>Available delivery window
-              <select id="deliverySlot" required>
-                <option value="">Choose a delivery date first</option>
-              </select>
-              <span class="form-note">Orders may be placed anytime. Up to 3 delivery orders are available per 30-minute window from 6:00 AM to 6:00 PM Central.</span>
-            </label>
-            <input id="orderTime" type="hidden" />
-      <label>Notes<textarea id="orderNotes" placeholder="Flavor notes, workplace name, etc."></textarea></label>
-      <button class="btn primary full" id="placeOrder">Continue to secure checkout</button>
-      <p class="form-note">Payments are securely processed by Square.</p>
-    </div>
-  </aside>
-  <div class="scrim" id="scrim"></div>
-  <div class="added-toast" id="addedToast" role="status">✓ Added to cart</div>
-  <button class="mobile-cart-bar hidden" id="mobileCartBar"><span id="mobileCartText">0 drinks • $0.00</span><strong>View Cart →</strong></button>
-
-  <dialog id="customizeDialog" class="customize-dialog">
-    <button class="dialog-close" id="customizeClose" aria-label="Close">×</button>
-    <span class="eyebrow" id="customizeType">Loaded Tea</span>
-    <h2 id="customizeName">Customize your drink</h2>
-    <p id="customizeDesc" class="dialog-intro"></p>
-    <div class="option-section size-section">
-      <div class="option-heading"><div><h3>Choose your size</h3><p>Regular 32 oz or Jumbo 40 oz.</p></div></div>
-      <div class="size-choices" id="sizeChoices">
-        <button type="button" class="size-choice active" data-size="regular"><strong>Regular</strong><span>32 oz</span><b>$10</b></button>
-        <button type="button" class="size-choice" data-size="jumbo"><strong>Jumbo</strong><span>40 oz</span><b>$12</b></button>
-      </div>
-    </div>
-    <div id="flavorBuilder" class="option-section">
-      <div class="option-heading"><div><h3>Choose flavors</h3><p id="flavorHelp">Choose up to 2 included flavors. Each additional flavor is +$1.</p></div><span id="flavorCharge" class="option-price">Included</span></div>
-      <div class="choice-grid" id="flavorChoices"></div>
-    </div>
-    <div class="option-section">
-      <div class="option-heading"><div><h3 id="enhanceHeading">Enhance your tea</h3><p>Add any of these to your drink.</p></div></div>
-      <div class="addon-list" id="addonChoices"></div>
-    </div>
-    <div class="caffeine-notice" id="caffeineNotice"><strong>⚡ Caffeine notice</strong><span>Loaded teas contain caffeine. Extra Liftoff adds additional caffeine.</span></div>
-    <div class="customize-footer"><div><span class="form-note">Drink total</span><strong id="customizeTotal">$12.00</strong></div><button class="btn primary" id="addCustomized">Add to order</button></div>
-  </dialog>
-
-  <dialog id="accountDialog" class="account-dialog">
-    <button class="dialog-close" id="accountClose" aria-label="Close">×</button>
-    <div id="accountAuthView">
-      <span class="eyebrow">Customer account</span><h2 id="accountTitle">Log in</h2>
-      <div class="auth-tabs"><button class="auth-tab active" data-mode="login">Log in</button><button class="auth-tab" data-mode="signup">Create account</button></div>
-      <form id="accountForm">
-        <label id="nameField" class="hidden">First name<input id="accountName" autocomplete="given-name" placeholder="First name"></label>
-        <label id="lastNameField" class="hidden">Last name<input id="accountLastName" autocomplete="family-name" placeholder="Last name"></label>
-        <label>Phone number<input id="accountPhone" autocomplete="tel" inputmode="tel" placeholder="(555) 555-5555" required></label>
-        <label id="emailField" class="hidden">Email<input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
-        <label>Password<input id="accountPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required></label>
-        <button class="btn primary full" id="accountSubmit" type="submit">Log in</button>
-        <p class="form-note auth-note">Your password is securely hashed. Card information is handled by Square and is never stored on this site.</p>
-        <p id="accountMessage" class="form-note"></p>
-      </form>
-    </div>
-    <div id="accountProfileView" class="hidden">
-      <span class="eyebrow">My account</span><h2 id="profileName">Welcome</h2><p id="profileContact" class="form-note"></p>
-      <div class="profile-card"><strong>Coming next</strong><p>Order history, saved delivery addresses, favorites, and one-tap reorder.</p></div>
-      <button class="btn ghost full" id="logoutBtn">Log out</button>
-    </div>
-  </dialog>
-
-  <dialog id="checkoutDialog" class="checkout-dialog">
-    <button class="dialog-close" id="checkoutClose" aria-label="Close checkout">×</button>
-    <span class="eyebrow">Secure checkout</span><h2>Finish your order</h2>
-    <div id="checkoutOrder" class="checkout-order"></div>
-    <div class="tip-box">
-      <div class="tip-heading"><div><strong>Add a tip</strong><span>100% optional — thank you for supporting us.</span></div></div>
-      <div class="tip-options">
-        <button type="button" class="tip-btn" data-percent="0">No tip</button>
-        <button type="button" class="tip-btn" data-percent="0.10">10%</button>
-        <button type="button" class="tip-btn" data-percent="0.15">15%</button>
-        <button type="button" class="tip-btn" data-percent="0.20">20%</button>
-      </div>
-      <label class="custom-tip-label">Custom tip $<input id="customTip" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
-    </div>
-    <div class="checkout-fields">
-      <label>First name<input id="customerName" autocomplete="given-name" placeholder="First name" required></label>
-      <label>Last name<input id="customerLastName" autocomplete="family-name" placeholder="Last name" required></label>
-      <label>Phone<input id="customerPhone" autocomplete="tel" placeholder="(555) 555-5555" required></label>
-      <label>Email <span class="optional">(optional)</span><input id="customerEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
-      <div class="checkout-contact-note">Need help? <a href="tel:+12055492444">Call (205) 549-2444</a> or <a href="sms:+12055492444">text us</a>.</div>
-    </div>
-    <div class="payment-method-box">
-      <strong>Payment method</strong>
-      <div class="payment-method-options">
-        <button type="button" class="payment-method active" data-payment="card">Card</button>
-        <button type="button" class="payment-method" data-payment="cash">Cash on delivery</button>
-      </div>
-    </div>
-    <div id="squareStatus" class="square-status">Checking secure payment connection…</div>
-    <div id="card-container"></div>
-    <button class="btn primary full" id="payButton" disabled>Pay securely</button>
-    <p id="paymentMessage" class="form-note" role="status"></p>
-    <p id="paymentModeNote" class="form-note">Payments are processed securely by Square.</p>
-  </dialog>
-
-  <dialog id="successDialog">
-    <button class="dialog-close" id="successClose">×</button><h2>Order received 🎉</h2><p id="successMessage"></p><button class="btn primary full" id="successDone">Done</button>
-  </dialog>
-
   <div class="public-contact-bar"><a href="tel:+12055492444">☎ Call</a><a href="sms:+12055492444">💬 Text for delivery</a></div>
-  <script src="app.js?v=20260904-gallery3"></script>
+  <script src="public.js?v=20260904-public4"></script>
 </body>
 </html>
