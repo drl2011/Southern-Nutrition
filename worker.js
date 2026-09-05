@@ -398,7 +398,7 @@ async function adminGallery(request,env,photoId=null){
       const imageData=String(body.imageData||'');
       const caption=String(body.caption||'').trim().slice(0,80);
       if(!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(imageData)) return json({error:'Choose a JPG, PNG, or WebP photo.'},400);
-      if(imageData.length>950000) return json({error:'That photo is still too large after resizing. Please choose a smaller photo.'},400);
+      if(imageData.length>350000) return json({error:'That photo is still too large after resizing. Please choose a smaller photo.'},400);
       const result=await env.DB.prepare(`INSERT INTO gallery_photos(image_data,caption) VALUES(?,?)`).bind(imageData,caption).run();
       return json({ok:true,id:result.meta?.last_row_id||null});
     }
@@ -408,7 +408,7 @@ async function adminGallery(request,env,photoId=null){
       return json({ok:true});
     }
     return json({error:'Unsupported gallery request.'},405);
-  }catch(e){console.log('admin gallery error',e);return json({error:'Unable to update the photo gallery.'},500);}
+  }catch(e){console.log('admin gallery error',e);const detail=String(e?.message||e||'Unknown gallery error').slice(0,220);return json({error:`Unable to update the photo gallery. ${detail}`},500);}
 }
 
 async function adminMe(request,env){

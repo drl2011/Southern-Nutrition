@@ -48,8 +48,8 @@ async function resizeGalleryImage(file){
     canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
     return canvas.toDataURL('image/jpeg',quality);
   };
-  let out=make(1200,.78); if(out.length>900000)out=make(900,.68); if(out.length>900000)out=make(720,.62);
-  if(out.length>900000)throw new Error(`${file.name} is too large. Try a smaller photo.`);
+  let out=make(1000,.72); if(out.length>320000)out=make(800,.62); if(out.length>320000)out=make(640,.55); if(out.length>320000)out=make(520,.48);
+  if(out.length>320000)throw new Error(`${file.name} is too large. Try a smaller photo.`);
   return out;
 }
 function renderGalleryAdmin(photos){
