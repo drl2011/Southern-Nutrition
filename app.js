@@ -68,8 +68,8 @@ const flavorOptions = ['Strawberry','Peach','Mango','Blueberry','Watermelon','Ch
 const addons = [
   {id:'fiber',name:'Add Fiber',price:3.50},
   {id:'collagen',name:'Add Collagen',price:3.50},
-  {id:'aloe',name:'Add Aloe',price:1.00},
-  {id:'liftoff',name:'Add Extra Liftoff',price:3.50,caffeine:true}
+  {id:'aloe',name:'Extra Aloe',price:1.00},
+  {id:'liftoff',name:'Add Extra Liftoff',price:4.00,caffeine:true}
 ];
 
 const CART_KEY='sn_cart_v8';

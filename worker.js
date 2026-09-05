@@ -45,7 +45,7 @@ const MENU = {
   'bubble-berry': { name: 'Bubble Berry', tea: true },
   'iced-protein-coffee': { name: 'Iced Protein Coffee', coffee: true }
 };
-const ADDONS = { fiber:350, collagen:350, aloe:100, liftoff:350, 'whipped-cream':100 };
+const ADDONS = { fiber:350, collagen:350, aloe:100, liftoff:400, 'whipped-cream':100 };
 const INCLUDED_FLAVOR_COUNTS = {'grape-limeade':3,'hawaiian-sunset':3,'mango-tango':3,'sunshine':3,'island-breeze':3,'paradise-punch':3,'margarita':3,'southern-sunset':3,'bombshell':3,'tutti-frutti':3,'beach-day':3,'beth-love':3};
 const ALLOWED_FLAVORS = new Set(['Strawberry', 'Peach', 'Mango', 'Blueberry', 'Watermelon', 'Cherry', 'Blue Blast', 'Grape', 'Lime', 'Pineapple', 'Orange', 'Cream', 'Lemon', 'Cantaloupe', 'Raspberry', 'Green Apple (Warhead Sour)', 'Blue Blast (Warhead Sour)', 'Cherry (Warhead Sour)', 'Watermelon (Warhead Sour)', 'Grape (Warhead Sour)', 'Sour Watermelon', 'Sour Blue Blast', 'Sour Apple', 'Sour Cherry', 'Apple (Warhead Sour)', 'Caramel', 'Rainbow Candy']);
 const SESSION_COOKIE = 'sn_session';
