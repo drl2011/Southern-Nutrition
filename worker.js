@@ -360,7 +360,7 @@ async function publicGallery(env){
   try{
     await ensureGallerySchema(env);
     const rows=await env.DB.prepare(`SELECT id,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
-    return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))},{headers:{'Cache-Control':'no-store, no-cache, must-revalidate'}});
+    return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))},200,{'Cache-Control':'no-store, no-cache, must-revalidate'});
   }catch(e){console.log('gallery load error',e);return json({photos:[]});}
 }
 async function publicGalleryImage(env,photoId){
@@ -389,7 +389,7 @@ async function adminGallery(request,env,photoId=null){
     await ensureGallerySchema(env);
     if(request.method==='GET'){
       const rows=await env.DB.prepare(`SELECT id,caption,created_at FROM gallery_photos ORDER BY id DESC LIMIT 15`).all();
-      return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))},{headers:{'Cache-Control':'no-store, no-cache, must-revalidate'}});
+      return json({photos:(rows.results||[]).map(r=>({id:r.id,imageUrl:`/api/gallery/${r.id}/image`,caption:r.caption||'',createdAt:r.created_at}))},200,{'Cache-Control':'no-store, no-cache, must-revalidate'});
     }
     if(request.method==='POST'){
       const count=await env.DB.prepare(`SELECT COUNT(*) AS n FROM gallery_photos`).first();
@@ -398,7 +398,7 @@ async function adminGallery(request,env,photoId=null){
       const imageData=String(body.imageData||'');
       const caption=String(body.caption||'').trim().slice(0,80);
       if(!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(imageData)) return json({error:'Choose a JPG, PNG, or WebP photo.'},400);
-      if(imageData.length>350000) return json({error:'That photo is still too large after resizing. Please choose a smaller photo.'},400);
+      if(imageData.length>600000) return json({error:'That photo is too large to save. Please try a different photo.'},400);
       const result=await env.DB.prepare(`INSERT INTO gallery_photos(image_data,caption) VALUES(?,?)`).bind(imageData,caption).run();
       return json({ok:true,id:result.meta?.last_row_id||null});
     }

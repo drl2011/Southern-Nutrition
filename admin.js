@@ -44,12 +44,20 @@ async function resizeGalleryImage(file){
   const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=()=>reject(new Error('Unable to open that photo.'));i.src=dataUrl;});
   const make=(maxDim,quality)=>{
     const scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
-    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
-    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+    canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d',{alpha:false});
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
     return canvas.toDataURL('image/jpeg',quality);
   };
-  let out=make(1000,.72); if(out.length>320000)out=make(800,.62); if(out.length>320000)out=make(640,.55); if(out.length>320000)out=make(520,.48);
-  if(out.length>320000)throw new Error(`${file.name} is too large. Try a smaller photo.`);
+  // Phone photos can be huge. Keep stepping them down automatically instead of making the user resize them.
+  const attempts=[[1200,.72],[1000,.66],[850,.60],[700,.54],[600,.48],[500,.42],[420,.36]];
+  let out='';
+  for(const [maxDim,quality] of attempts){
+    out=make(maxDim,quality);
+    if(out.length<=500000) return out;
+  }
   return out;
 }
 function renderGalleryAdmin(photos){
