@@ -481,11 +481,11 @@ function bindTipControls(){
 }
 
 $$('.filter').forEach(b=>b.onclick=()=>{$$('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderMenu(b.dataset.filter);});
-$('#cartBtn').onclick=openCart; $('#closeCart').onclick=closeCart; $('#scrim').onclick=closeCart;
+if($('#cartBtn')) $('#cartBtn').onclick=openCart; if($('#closeCart')) $('#closeCart').onclick=closeCart; if($('#scrim')) $('#scrim').onclick=closeCart;
 $('#customizeClose').onclick=()=>$('#customizeDialog').close();$('#addCustomized').onclick=addCustomized;
 $$('#sizeChoices .size-choice').forEach(b=>b.onclick=()=>{if(!customizing)return;customizing.size=b.dataset.size;$$('#sizeChoices .size-choice').forEach(x=>x.classList.toggle('active',x===b));updateCustomizerPrice();});
 $('#mobileCartBar').onclick=openCart;
-$('#accountBtn').onclick=()=>openAccount();$('#accountClose').onclick=()=>$('#accountDialog').close();$$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode));$('#logoutBtn').onclick=logout;
+if($('#accountBtn')) $('#accountBtn').onclick=()=>openAccount(); if($('#accountClose')) $('#accountClose').onclick=()=>$('#accountDialog').close(); $$('.auth-tab').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.mode)); if($('#logoutBtn')) $('#logoutBtn').onclick=logout;
 
 $('#placeOrder').onclick=async()=>{
   if(!cart.length)return alert('Add at least one drink first.');
