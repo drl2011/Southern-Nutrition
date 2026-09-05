@@ -567,21 +567,21 @@ $('#successClose').onclick=()=>$('#successDialog').close();$('#successDone').onc
 $('#year').textContent=new Date().getFullYear();
 
 async function loadGallery(){
-  const section=$('#gallerySection'), track=$('#galleryTrack');
+  const section=$('#gallerySection'), track=$('#galleryTrack'), empty=$('#galleryEmpty');
   if(!section||!track)return;
   try{
     const r=await fetch('/api/gallery',{cache:'no-store'}); const data=await r.json();
     const photos=Array.isArray(data.photos)?data.photos:[];
-    if(!photos.length){section.classList.add('hidden');return;}
+    if(!photos.length){if(empty)empty.classList.remove('hidden');return;}
     track.innerHTML=photos.map(p=>`<figure class="gallery-slide"><img src="${p.imageData}" alt="${p.caption||'Southern Nutrition photo'}" loading="lazy">${p.caption?`<figcaption>${p.caption}</figcaption>`:''}</figure>`).join('');
-    section.classList.remove('hidden');
+    if(empty)empty.classList.add('hidden');
     let timer=setInterval(()=>{
       if(track.scrollWidth<=track.clientWidth+10)return;
       const nearEnd=track.scrollLeft+track.clientWidth>=track.scrollWidth-20;
       track.scrollTo({left:nearEnd?0:track.scrollLeft+Math.min(330,track.clientWidth*.8),behavior:'smooth'});
     },4200);
     ['pointerdown','touchstart'].forEach(evt=>track.addEventListener(evt,()=>{clearInterval(timer);},{once:true,passive:true}));
-  }catch(e){section.classList.add('hidden');}
+  }catch(e){if(empty)empty.classList.remove('hidden');}
 }
 
 renderMenu();renderCart();renderAccountState();bindTipControls();setupDeliverySlots();refreshSession();initSquare();loadGallery();

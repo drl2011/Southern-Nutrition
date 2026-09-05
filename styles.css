@@ -209,3 +209,17 @@
 .map-pin{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);width:62px;height:62px;border-radius:50% 50% 50% 10%;rotate:-45deg;background:#bd3f27;color:#fff;display:grid;place-items:center;font-weight:900;box-shadow:0 8px 20px rgba(0,0,0,.18)}.map-pin::first-line{rotate:45deg}.map-label{position:absolute;z-index:2;background:rgba(255,255,255,.9);padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800}.map-label.north{top:22px;left:22px}.map-label.south{bottom:18px;right:18px}.map-note{font-weight:650;line-height:1.5;color:#654f43}
 .public-contact-bar{display:none}
 @media(max-width:760px){.site-header nav>a:not(.header-text-btn){display:none}.header-text-btn{padding:9px 11px;font-size:12px}.public-contact-bar{position:fixed;z-index:50;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));display:grid;grid-template-columns:.75fr 1.25fr;gap:8px;padding:8px;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 34px rgba(0,0,0,.18)}.public-contact-bar a{text-decoration:none;text-align:center;padding:12px 8px;border-radius:12px;font-weight:900;background:#fff3ee;color:#9f321f}.public-contact-bar a:last-child{background:#bd3f27;color:#fff}body{padding-bottom:86px}.service-map{height:235px}}
+
+
+/* Hero photo gallery — admin uploads replace the original two decorative drinks */
+.hero-gallery{min-height:500px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:30px;background:linear-gradient(135deg,#fff5ea,#ffe9ec);border:1px solid rgba(205,170,150,.45);box-shadow:var(--shadow)}
+.hero-gallery-track{width:100%;display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+.hero-gallery-track::-webkit-scrollbar{display:none}
+.hero-gallery .gallery-slide{flex:0 0 100%;height:500px;border:0;border-radius:0;box-shadow:none;position:relative;background:transparent}
+.hero-gallery .gallery-slide img{width:100%;height:100%;object-fit:cover;display:block}
+.hero-gallery .gallery-slide figcaption{position:absolute;left:18px;right:18px;bottom:18px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.9);color:#4b342d;font-weight:800;backdrop-filter:blur(8px)}
+.hero-gallery-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;color:#9c4c3a}
+.hero-gallery-empty span{font-size:12px;text-transform:uppercase;letter-spacing:.14em;font-weight:900}.hero-gallery-empty strong{font-family:'Outfit',sans-serif;font-size:28px;margin-top:8px}
+.hero-gallery-empty.hidden{display:none!important}
+@media(max-width:980px){.hero-gallery{min-height:420px}.hero-gallery .gallery-slide{height:420px}}
+@media(max-width:580px){.hero-gallery{min-height:340px}.hero-gallery .gallery-slide{height:340px;border-radius:24px}.hero-gallery-empty strong{font-size:23px}}
